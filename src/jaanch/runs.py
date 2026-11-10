@@ -14,7 +14,7 @@ FIGURE_PATTERN = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 FIGURE_SUFFIXES = [".pdf", ".png", ".jpg", ".jpeg", ".eps"]
 # latexpand --verbose names every file it opens, whatever the directive
 # (\\input, \\include, ...), so checking these lines fails closed.
-OPENED_FILE = re.compile(r"^\s*Found \w+ for file: (.+)$", re.MULTILINE)
+OPENED_FILE = re.compile(r"^\s*(?:Found \w+ for file:|processing) (.+)$", re.MULTILINE)
 # Limits for papers we did not write: a macro that refers to itself, or a
 # chain of macros that doubles at each step, must not exhaust memory.
 MAX_MACRO_VALUE = 1_000
@@ -29,11 +29,16 @@ def slugify(name: str) -> str:
 
 
 def project_root(paper: Path) -> Path:
-    """The git repository holding the paper, or else the paper's folder."""
-    result = subprocess.run(
-        ["git", "-C", str(paper.parent), "rev-parse", "--show-toplevel"], capture_output=True, text=True
-    )
-    return Path(result.stdout.strip()).resolve() if result.returncode == 0 else paper.parent.resolve()
+    """The nearest folder above the paper that holds a .git, or else the paper's folder.
+
+    Found by looking for .git rather than asking git, because a submitted
+    paper's own git config (core.worktree) can make git report any folder.
+    """
+    start = paper.resolve().parent
+    for folder in [start, *start.parents]:
+        if (folder / ".git").exists():
+            return folder
+    return start
 
 
 def check_root(root: Path, paper: Path) -> None:
@@ -62,6 +67,8 @@ def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
         return paper.read_text(), "copied; latexpand not found, so \\input files are missing"
     command = ["latexpand", "--empty-comments", "--explain", "--verbose"]
     bbl = paper.with_suffix(".bbl")
+    if bbl.exists() and not bbl.resolve().is_relative_to(root):
+        raise ValueError(f"{bbl.name} points outside {root}")
     if bbl.exists():
         command += ["--expand-bbl", bbl.name]
     result = subprocess.run(

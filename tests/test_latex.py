@@ -70,3 +70,26 @@ def test_figures_outside_root_are_not_listed(tmp_path):
     )
     run_dir = start_run(project / "main.tex", tmp_path / "reviews", root=project)
     assert json.loads((run_dir / "run.json").read_text())["figures"] == []
+
+
+def test_bibliography_symlink_outside_root_is_refused(tmp_path):
+    secret = tmp_path / "secret.txt"
+    secret.write_text("do not share")
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "main.tex").write_text("\\documentclass{article}\\begin{document}x\\end{document}\n")
+    (project / "main.bbl").symlink_to(secret)
+    with pytest.raises(ValueError, match="points outside"):
+        start_run(project / "main.tex", tmp_path / "reviews", root=project)
+
+
+def test_root_ignores_git_config_and_finds_nearest_git_folder(tmp_path):
+    from jaanch.runs import project_root
+
+    repo = tmp_path / "repo"
+    (repo / "ms").mkdir(parents=True)
+    (repo / ".git").mkdir()
+    (repo / ".git" / "config").write_text("[core]\n\tworktree = /\n")
+    paper = repo / "ms" / "main.tex"
+    paper.write_text("x")
+    assert project_root(paper) == repo.resolve()
