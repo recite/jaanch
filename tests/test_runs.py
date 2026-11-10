@@ -76,3 +76,11 @@ def test_expand_macros_replaces_values_in_body_only():
     expanded = expand_macros(text)
     assert "Gain 4.2 points, low 4.2 minus 1, not \\poolEstimateX or \\bold{x}." in expanded
     assert "\\newcommand{\\poolEstimate}{4.2}" in expanded
+
+
+def test_expand_macros_skips_self_reference_and_caps_growth():
+    looping = "\\newcommand{\\a}{x\\a}\n\\begin{document}\n\\a\n"
+    assert expand_macros(looping) == looping
+    doubling = "\\newcommand{\\b}{" + "y" * 200 + "}\n\\begin{document}\n" + "\\b " * 50
+    with pytest.raises(ValueError, match="doubled"):
+        expand_macros(doubling)

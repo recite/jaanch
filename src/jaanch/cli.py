@@ -20,7 +20,7 @@ def _report(problems: list) -> int:
 
 def _start(args: argparse.Namespace) -> int:
     try:
-        run_dir = start_run(args.paper, args.reviews_dir, args.name)
+        run_dir = start_run(args.paper, args.reviews_dir, args.name, args.root)
     except ValueError as error:
         print(error, file=sys.stderr)
         return 2
@@ -74,6 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("paper", type=Path)
     start.add_argument("--reviews-dir", type=Path, default=Path("reviews"))
     start.add_argument("--name", help="run folder name; defaults to the file name")
+    start.add_argument(
+        "--root", type=Path, help="folder the paper may read files from; defaults to its git repo"
+    )
     start.set_defaults(handler=_start)
 
     merge = commands.add_parser("merge", help="merge candidates, dropping invalid or unanchored ones")

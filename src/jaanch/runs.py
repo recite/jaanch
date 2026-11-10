@@ -11,7 +11,12 @@ from jaanch.check import check_comment, normalize_text, read_jsonl, sha256_file
 
 TEXT_SUFFIXES = {".md", ".markdown", ".tex", ".txt"}
 FIGURE_PATTERN = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
-FIGURE_SUFFIXES = ["", ".pdf", ".png", ".jpg", ".jpeg", ".eps"]
+FIGURE_SUFFIXES = [".pdf", ".png", ".jpg", ".jpeg", ".eps"]
+INPUT_MARKER = re.compile(r"^% start input (.+)$", re.MULTILINE)
+# Limits for papers we did not write: a macro that refers to itself, or a
+# chain of macros that doubles at each step, must not exhaust memory.
+MAX_MACRO_VALUE = 1_000
+MAX_EXPANSION_FACTOR = 2
 # A zero-argument \newcommand whose body nests braces at most one level deep.
 MACRO_DEFINITION = re.compile(r"\\newcommand\*?\{?\\([A-Za-z]+)\}?\{((?:[^{}#]|\{[^{}#]*\})*)\}")
 
@@ -21,21 +26,41 @@ def slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", ascii_name.casefold()).strip("_") or "paper"
 
 
-def flatten_latex(paper: Path) -> tuple[str, str]:
+def project_root(paper: Path) -> Path:
+    """The git repository holding the paper, or else the paper's folder."""
+    result = subprocess.run(
+        ["git", "-C", str(paper.parent), "rev-parse", "--show-toplevel"], capture_output=True, text=True
+    )
+    return Path(result.stdout.strip()).resolve() if result.returncode == 0 else paper.parent.resolve()
+
+
+def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
     """Inline \\input files, tables and the bibliography with latexpand.
 
     Without this a reviewer sees `\\input{../tabs/main.tex}` instead of the
-    table, and cannot check the text against it.
+    table, and cannot check the text against it. A manuscript under review may
+    come from someone else, so every file it pulls in must sit inside `root`;
+    otherwise `\\input{~/.ssh/id_rsa}` would put that file in front of agents
+    that can reach the web.
     """
     if shutil.which("latexpand") is None:
         return paper.read_text(), "copied; latexpand not found, so \\input files are missing"
-    command = ["latexpand", "--empty-comments"]
+    command = ["latexpand", "--empty-comments", "--explain"]
     bbl = paper.with_suffix(".bbl")
     if bbl.exists():
         command += ["--expand-bbl", bbl.name]
     result = subprocess.run(
         command + [paper.name], cwd=paper.parent, capture_output=True, text=True, check=True
     )
+    outside = [
+        name
+        for name in INPUT_MARKER.findall(result.stdout)
+        if not (paper.parent / name.strip()).resolve().is_relative_to(root)
+    ]
+    if outside:
+        raise ValueError(
+            f"the paper reads files outside {root}: {', '.join(outside)}; pass --root to allow them"
+        )
     method = "flattened with latexpand" + (" including the bibliography" if bbl.exists() else "")
     return expand_macros(result.stdout), method + "; zero-argument macros expanded"
 
@@ -52,31 +77,42 @@ def expand_macros(text: str) -> str:
     if start == -1:
         return text
     preamble, body = text[:start], text[start:]
-    macros = dict(MACRO_DEFINITION.findall(preamble))
+    macros = {
+        name: value
+        for name, value in MACRO_DEFINITION.findall(preamble)
+        if len(value) <= MAX_MACRO_VALUE and f"\\{name}" not in value
+    }
     if not macros:
         return text
     pattern = re.compile(
         r"\\(" + "|".join(sorted(map(re.escape, macros), key=len, reverse=True)) + r")(?![A-Za-z@])(\{\})?"
     )
     # Values can refer to other macros; three passes cover any realistic depth.
+    limit = MAX_EXPANSION_FACTOR * len(body)
     for _ in range(3):
         body = pattern.sub(lambda match: macros[match.group(1)], body)
+        if len(body) > limit:
+            raise ValueError("macro expansion more than doubled the paper; refusing to continue")
     return preamble + body
 
 
-def find_figures(text: str, base: Path) -> list[str]:
-    """Absolute paths of figure files, so agents that can view images can look."""
+def find_figures(text: str, base: Path, root: Path) -> list[str]:
+    """Absolute paths of figure files inside root, so agents that can view images can look."""
     figures = []
     for name in FIGURE_PATTERN.findall(text):
-        for suffix in FIGURE_SUFFIXES:
-            candidate = (base / f"{name}{suffix}").resolve()
-            if candidate.is_file():
+        stem = Path(name)
+        names = (
+            [name] if stem.suffix.casefold() in FIGURE_SUFFIXES else [f"{name}{s}" for s in FIGURE_SUFFIXES]
+        )
+        for candidate_name in names:
+            candidate = (base / candidate_name).resolve()
+            if candidate.is_file() and candidate.is_relative_to(root):
                 figures.append(str(candidate))
                 break
     return figures
 
 
-def start_run(paper: Path, reviews_dir: Path, name: str | None = None) -> Path:
+def start_run(paper: Path, reviews_dir: Path, name: str | None = None, root: Path | None = None) -> Path:
     """Write the paper's full text to reviews/<slug>/paper.txt and record what was reviewed."""
     suffix = paper.suffix.casefold()
     if suffix not in TEXT_SUFFIXES:
@@ -84,8 +120,9 @@ def start_run(paper: Path, reviews_dir: Path, name: str | None = None) -> Path:
             f"{paper.suffix} is not supported yet; give jaanch .md, .tex or .txt "
             "(PDF ingest is an open decision in docs/design.md)"
         )
+    root = (root or project_root(paper)).resolve()
     if suffix == ".tex":
-        text, method = flatten_latex(paper)
+        text, method = flatten_latex(paper, root)
     else:
         text, method = paper.read_text(), "copied"
 
@@ -96,7 +133,7 @@ def start_run(paper: Path, reviews_dir: Path, name: str | None = None) -> Path:
         "source_path": str(paper.resolve()),
         "sha256": sha256_file(run_dir / "paper.txt"),
         "method": method,
-        "figures": find_figures(text, paper.resolve().parent),
+        "figures": find_figures(text, paper.resolve().parent, root),
     }
     (run_dir / "run.json").write_text(json.dumps(run, indent=2) + "\n")
     return run_dir
