@@ -1,6 +1,6 @@
 SKILLS := $(notdir $(wildcard .agents/skills/*))
 AGENTS := $(basename $(notdir $(wildcard agents/roles/*.md)))
-PYTHON_SOURCES := src scripts tests
+PYTHON_SOURCES := src scripts tests eval
 
 .PHONY: sync lint format test agents check-agents ci ci-docker install uninstall
 
