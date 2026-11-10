@@ -1,6 +1,6 @@
 from conftest import PAPER, make_comment, make_review
 
-from jaanch.check import anchor_quote, check_comments, check_review, check_verdicts, normalize_text
+from jaanch.check import anchor_quote, check_comments, check_review, check_revision_verdicts, normalize_text
 
 PAPER_NORMALIZED = normalize_text(PAPER)
 
@@ -80,5 +80,5 @@ def test_verdicts_must_cover_every_prior_comment(paper_path):
         {"source_comment_id": "consistency_001", "status": "fully_addressed", "note": "Now says column 1."},
         {"source_comment_id": "writing_007", "status": "not_addressed", "note": "Unchanged."},
     ]
-    messages = sorted(p.message for p in check_verdicts(verdicts, prior))
+    messages = sorted(p.message for p in check_revision_verdicts(verdicts, prior))
     assert messages == ["not a comment in the prior review", "prior comment has no verdict"]

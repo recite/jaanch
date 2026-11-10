@@ -6,9 +6,9 @@ import sys
 from importlib.resources import files
 from pathlib import Path
 
-from jaanch.check import check_comments, check_review, check_verdicts, read_jsonl
+from jaanch.check import check_comments, check_review, check_revision_verdicts, read_jsonl
 from jaanch.render import render_review
-from jaanch.runs import merge_candidates, start_run
+from jaanch.runs import merge_candidates, merge_verdicts, start_run
 
 
 def _report(problems: list) -> int:
@@ -38,6 +38,14 @@ def _merge(args: argparse.Namespace) -> int:
     return 0
 
 
+def _verdicts(args: argparse.Namespace) -> int:
+    verdicts, problems = merge_verdicts(args.run_dir)
+    out = args.run_dir / "verdicts.jsonl"
+    out.write_text("".join(json.dumps(verdict) + "\n" for verdict in verdicts))
+    print(f"{len(verdicts)} verdicts -> {out}")
+    return _report(problems)
+
+
 def _check(args: argparse.Namespace) -> int:
     if args.path.suffix == ".jsonl":
         return _report(check_comments(read_jsonl(args.path), args.paper.read_text()))
@@ -46,7 +54,7 @@ def _check(args: argparse.Namespace) -> int:
 
 def _check_revision(args: argparse.Namespace) -> int:
     prior = json.loads(args.prior_review.read_text())
-    return _report(check_verdicts(read_jsonl(args.verdicts), prior))
+    return _report(check_revision_verdicts(read_jsonl(args.verdicts), prior))
 
 
 def _instructions(args: argparse.Namespace) -> int:
@@ -82,6 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
     merge = commands.add_parser("merge", help="merge candidates, dropping invalid or unanchored ones")
     merge.add_argument("run_dir", type=Path)
     merge.set_defaults(handler=_merge)
+
+    verdicts = commands.add_parser("verdicts", help="merge and validate the skeptics' verdicts")
+    verdicts.add_argument("run_dir", type=Path)
+    verdicts.set_defaults(handler=_verdicts)
 
     check = commands.add_parser("check", help="validate review.json or a comments .jsonl")
     check.add_argument("path", type=Path)

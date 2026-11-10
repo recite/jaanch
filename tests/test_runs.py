@@ -84,3 +84,34 @@ def test_expand_macros_skips_self_reference_and_caps_growth():
     doubling = "\\newcommand{\\b}{" + "y" * 200 + "}\n\\begin{document}\n" + "\\b " * 50
     with pytest.raises(ValueError, match="doubled"):
         expand_macros(doubling)
+
+
+def test_merge_verdicts_reports_bad_lines_and_unjudged_candidates(paper_path, tmp_path):
+    from jaanch.runs import merge_verdicts
+
+    run_dir = start_run(paper_path, tmp_path / "reviews")
+    write_jsonl(run_dir / "candidates_merged.jsonl", [make_comment(), make_comment(id="writing_001")])
+    (run_dir / "verify").mkdir()
+    (run_dir / "verify" / "verdicts_01.jsonl").write_text(
+        '{"id": "consistency_001", "verdict": "confirmed", "severity": "minor", "note": "Recomputed."}\n'
+        '{"id": "writing_001", "verdict": "confirmed", "severity": "nit", "note": "ok"}\n'
+        '{"id": "writing_001", "note": "unescaped "quote""}\n'
+    )
+    verdicts, problems = merge_verdicts(run_dir)
+    assert [v["id"] for v in verdicts] == ["consistency_001"]
+    assert any("verdicts_01.jsonl:2" in p and "nit" in p for p in problems)
+    assert any("verdicts_01.jsonl:3: not valid JSON" in p for p in problems)
+    assert "writing_001: no verdict" in problems
+
+
+def test_strip_comments_spares_urls_and_escaped_percent():
+    from jaanch.runs import strip_comments
+
+    text = (
+        "See \\href{https://x.gov/ACT%20Bihar.pdf}{the act}, sec. 2. % a note\n"
+        "Turnout was 60\\% here.\n% whole-line note\n\\end{document}\nafter the end\n"
+    )
+    stripped = strip_comments(text)
+    assert "\\href{https://x.gov/ACT%20Bihar.pdf}{the act}, sec. 2. \n" in stripped
+    assert "Turnout was 60\\% here." in stripped
+    assert "note" not in stripped and "after the end" not in stripped

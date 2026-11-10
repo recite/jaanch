@@ -51,6 +51,9 @@ Give each subagent the run folder, its output path and its id prefix. Give
 each `jaanch_check_reasoning` its section id and line range as well. If the user
 asked to skip a goal, skip that row.
 
+Run at most 15 subagents at once (Claude Code allows 20 in all); when there
+are more, start the next as one finishes.
+
 If a subagent fails or writes nothing, retry it once. If it fails again,
 continue, and report the missing goal at the end.
 
@@ -72,8 +75,13 @@ about the same section together. Write each batch to
 the batch path and the output path `<run>/verify/verdicts_<NN>.jsonl`. Then:
 
 ```sh
-cat <run>/verify/verdicts_*.jsonl > <run>/verdicts.jsonl
+jaanch verdicts <run>
 ```
+
+It merges `<run>/verify/verdicts_*.jsonl` into `<run>/verdicts.jsonl` and
+lists every invalid line and every candidate without a verdict. If it reports
+problems, rerun `jaanch_verify_finding` on the affected batches and run it
+again.
 
 ## 6. Write the review
 

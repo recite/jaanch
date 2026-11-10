@@ -7,7 +7,7 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
-from jaanch.check import check_comment, normalize_text, read_jsonl, sha256_file
+from jaanch.check import check_comment, check_verdict, normalize_text, read_jsonl, sha256_file
 
 TEXT_SUFFIXES = {".md", ".markdown", ".tex", ".txt"}
 FIGURE_PATTERN = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
@@ -19,6 +19,10 @@ OPENED_FILE = re.compile(r"^\s*(?:Found \w+ for file:|processing) (.+)$", re.MUL
 # chain of macros that doubles at each step, must not exhaust memory.
 MAX_MACRO_VALUE = 1_000
 MAX_EXPANSION_FACTOR = 2
+# latexpand's own comment stripping cuts \\href{...%20...} at the %, losing the
+# rest of the line, so comments are kept there and stripped here instead.
+URL_ARGUMENT = re.compile(r"\\(?:url|href)\{[^{}]*\}")
+COMMENT = re.compile(r"(?<!\\)%.*$", re.MULTILINE)
 # A zero-argument \newcommand whose body nests braces at most one level deep.
 MACRO_DEFINITION = re.compile(r"\\newcommand\*?\{?\\([A-Za-z]+)\}?\{((?:[^{}#]|\{[^{}#]*\})*)\}")
 
@@ -26,6 +30,18 @@ MACRO_DEFINITION = re.compile(r"\\newcommand\*?\{?\\([A-Za-z]+)\}?\{((?:[^{}#]|\
 def slugify(name: str) -> str:
     ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", ascii_name.casefold()).strip("_") or "paper"
+
+
+def strip_comments(text: str) -> str:
+    """Remove LaTeX comments and anything after \\end{document}, sparing URLs."""
+    end = text.find("\\end{document}")
+    if end != -1:
+        text = text[: end + len("\\end{document}")] + "\n"
+    urls = URL_ARGUMENT.findall(text)
+    masked = URL_ARGUMENT.sub("\x00", text)
+    masked = COMMENT.sub("", masked)
+    pieces = masked.split("\x00")
+    return "".join(piece + url for piece, url in zip(pieces, urls + [""]))
 
 
 def project_root(paper: Path) -> Path:
@@ -65,7 +81,7 @@ def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
     """
     if shutil.which("latexpand") is None:
         return paper.read_text(), "copied; latexpand not found, so \\input files are missing"
-    command = ["latexpand", "--empty-comments", "--explain", "--verbose"]
+    command = ["latexpand", "--keep-comments", "--verbose"]
     bbl = paper.with_suffix(".bbl")
     if bbl.exists() and not bbl.resolve().is_relative_to(root):
         raise ValueError(f"{bbl.name} points outside {root}")
@@ -84,7 +100,10 @@ def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
             f"the paper reads files outside {root}: {', '.join(outside)}; pass --root to allow them"
         )
     method = "flattened with latexpand" + (" including the bibliography" if bbl.exists() else "")
-    return expand_macros(result.stdout), method + "; zero-argument macros expanded"
+    return (
+        expand_macros(strip_comments(result.stdout)),
+        method + "; comments removed; zero-argument macros expanded",
+    )
 
 
 def expand_macros(text: str) -> str:
@@ -179,3 +198,27 @@ def merge_candidates(run_dir: Path) -> tuple[list[dict], list[str]]:
             seen.add(comment["id"])
             kept.append(comment)
     return kept, dropped
+
+
+def merge_verdicts(run_dir: Path) -> tuple[list[dict], list[str]]:
+    """Merge verify/verdicts_*.jsonl, reporting bad lines and candidates left unjudged."""
+    verdicts, problems = [], []
+    for path in sorted((run_dir / "verify").glob("verdicts_*.jsonl")):
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            if not line.strip():
+                continue
+            where = f"{path.name}:{number}"
+            try:
+                verdict = json.loads(line)
+            except json.JSONDecodeError as error:
+                problems.append(f"{where}: not valid JSON ({error.msg})")
+                continue
+            found = [str(problem) for problem in check_verdict(verdict, where)]
+            if found:
+                problems += found
+                continue
+            verdicts.append(verdict)
+    judged = {verdict["id"] for verdict in verdicts}
+    candidates = read_jsonl(run_dir / "candidates_merged.jsonl")
+    problems += [f"{c['id']}: no verdict" for c in candidates if c["id"] not in judged]
+    return verdicts, problems

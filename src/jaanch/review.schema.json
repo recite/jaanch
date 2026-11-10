@@ -44,6 +44,18 @@
     "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}}
   },
   "$defs": {
+    "verdict": {
+      "description": "One line written by jaanch_verify_finding.",
+      "type": "object",
+      "required": ["id", "verdict", "severity", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string"},
+        "verdict": {"enum": ["confirmed", "plausible", "refuted"]},
+        "severity": {"enum": ["critical", "major", "minor", "suggestion"]},
+        "note": {"type": "string", "minLength": 1}
+      }
+    },
     "revision_verdict": {
       "description": "One line of the revision check: was a prior comment addressed in the revised paper?",
       "type": "object",

@@ -26,8 +26,9 @@ For each candidate:
    - `plausible`: it looks right, but you could not verify it.
 
    Refute only on evidence. Uncertainty means `plausible`, not `refuted`.
-5. Re-rate severity if the candidate's is wrong. Leave it unchanged for a
-   refuted candidate.
+5. Re-rate severity if the candidate's is wrong, using only `critical`,
+   `major`, `minor` or `suggestion`. Leave it unchanged for a refuted
+   candidate.
 
 Judge only the problem each candidate raises. If you notice a different
 problem, do not put it in a note, where it would never be ranked or merged.
@@ -40,5 +41,6 @@ Write one JSON object per line to the output path you are given:
 {"id": "reasoning_s03_002", "verdict": "confirmed", "severity": "major", "note": "Recomputed: 0.31/0.12 = 2.6, not 3.1 as stated."}
 ```
 
+Escape any double quote inside `note` as `\\"`; each line must be valid JSON.
 `note` says what you checked and what you found, in one or two sentences.
 Reply with the output path and counts by verdict.

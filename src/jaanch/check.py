@@ -112,7 +112,11 @@ def check_review(review: dict, paper_path: Path) -> list[Problem]:
     return problems
 
 
-def check_verdicts(verdicts: list[dict], prior_review: dict) -> list[Problem]:
+def check_verdict(verdict: dict, where: str) -> list[Problem]:
+    return _schema_problems(verdict, "verdict", where)
+
+
+def check_revision_verdicts(verdicts: list[dict], prior_review: dict) -> list[Problem]:
     prior_ids = {comment["id"] for comment in prior_review.get("comments", [])}
     problems = []
     for number, verdict in enumerate(verdicts, start=1):
