@@ -12,7 +12,9 @@ from jaanch.check import check_comment, normalize_text, read_jsonl, sha256_file
 TEXT_SUFFIXES = {".md", ".markdown", ".tex", ".txt"}
 FIGURE_PATTERN = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
 FIGURE_SUFFIXES = [".pdf", ".png", ".jpg", ".jpeg", ".eps"]
-INPUT_MARKER = re.compile(r"^% start input (.+)$", re.MULTILINE)
+# latexpand --verbose names every file it opens, whatever the directive
+# (\\input, \\include, ...), so checking these lines fails closed.
+OPENED_FILE = re.compile(r"^\s*Found \w+ for file: (.+)$", re.MULTILINE)
 # Limits for papers we did not write: a macro that refers to itself, or a
 # chain of macros that doubles at each step, must not exhaust memory.
 MAX_MACRO_VALUE = 1_000
@@ -34,6 +36,19 @@ def project_root(paper: Path) -> Path:
     return Path(result.stdout.strip()).resolve() if result.returncode == 0 else paper.parent.resolve()
 
 
+def check_root(root: Path, paper: Path) -> None:
+    """Refuse a root that does not hold the paper, or that would expose a home folder.
+
+    A submitted manuscript's own .git can point git anywhere, so the root
+    git reports is checked rather than trusted.
+    """
+    home = Path.home().resolve()
+    if not paper.resolve().is_relative_to(root):
+        raise ValueError(f"root {root} does not contain the paper")
+    if root == home or home.is_relative_to(root):
+        raise ValueError(f"root {root} would expose your home folder; pass a narrower --root")
+
+
 def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
     """Inline \\input files, tables and the bibliography with latexpand.
 
@@ -45,7 +60,7 @@ def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
     """
     if shutil.which("latexpand") is None:
         return paper.read_text(), "copied; latexpand not found, so \\input files are missing"
-    command = ["latexpand", "--empty-comments", "--explain"]
+    command = ["latexpand", "--empty-comments", "--explain", "--verbose"]
     bbl = paper.with_suffix(".bbl")
     if bbl.exists():
         command += ["--expand-bbl", bbl.name]
@@ -54,7 +69,7 @@ def flatten_latex(paper: Path, root: Path) -> tuple[str, str]:
     )
     outside = [
         name
-        for name in INPUT_MARKER.findall(result.stdout)
+        for name in OPENED_FILE.findall(result.stderr)
         if not (paper.parent / name.strip()).resolve().is_relative_to(root)
     ]
     if outside:
@@ -121,6 +136,7 @@ def start_run(paper: Path, reviews_dir: Path, name: str | None = None, root: Pat
             "(PDF ingest is an open decision in docs/design.md)"
         )
     root = (root or project_root(paper)).resolve()
+    check_root(root, paper)
     if suffix == ".tex":
         text, method = flatten_latex(paper, root)
     else:
