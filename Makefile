@@ -34,13 +34,22 @@ ci-docker:
 
 # Links rather than copies, so edits in this repo reach both CLIs at once.
 # Codex skills go in ~/.codex/skills, not ~/.agents/skills, which is often
-# someone's own skills repository.
+# someone's own skills repository. ~/.claude/skills can be one too; then the
+# links are listed in that repository's local .git/info/exclude, which is never
+# committed, so they do not show up as untracked files.
 install: check-agents
 	uv tool install --force --editable .
 	mkdir -p $(HOME)/.claude/skills $(HOME)/.claude/agents $(HOME)/.codex/skills $(HOME)/.codex/agents
 	for skill in $(SKILLS); do \
 		ln -sfn "$(CURDIR)/.agents/skills/$$skill" "$(HOME)/.claude/skills/$$skill"; \
 		ln -sfn "$(CURDIR)/.agents/skills/$$skill" "$(HOME)/.codex/skills/$$skill"; \
+	done
+	for dir in $(HOME)/.claude/skills $(HOME)/.codex/skills; do \
+		exclude=$$(git -C "$$dir" rev-parse --git-path info/exclude 2>/dev/null) || continue; \
+		case "$$exclude" in /*) ;; *) exclude="$$dir/$$exclude";; esac; \
+		for skill in $(SKILLS); do \
+			grep -qxF "/$$skill" "$$exclude" 2>/dev/null || echo "/$$skill" >> "$$exclude"; \
+		done; \
 	done
 	for agent in $(AGENTS); do \
 		ln -sfn "$(CURDIR)/.claude/agents/$$agent.md" "$(HOME)/.claude/agents/$$agent.md"; \
