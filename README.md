@@ -40,7 +40,7 @@ make install
 ```
 
 This installs the `jaanch` command with `uv tool` and links the skills and
-subagents into `~/.claude` (Claude Code) and `~/.agents`, `~/.codex` (Codex).
+subagents into `~/.claude` (Claude Code) and `~/.codex` (Codex).
 `make uninstall` removes them.
 
 ## Use

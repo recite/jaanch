@@ -33,12 +33,14 @@ ci-docker:
 		&& UV_PROJECT_ENVIRONMENT=/tmp/venv make ci"
 
 # Links rather than copies, so edits in this repo reach both CLIs at once.
+# Codex skills go in ~/.codex/skills, not ~/.agents/skills, which is often
+# someone's own skills repository.
 install: check-agents
 	uv tool install --force --editable .
-	mkdir -p $(HOME)/.claude/skills $(HOME)/.claude/agents $(HOME)/.agents/skills $(HOME)/.codex/agents
+	mkdir -p $(HOME)/.claude/skills $(HOME)/.claude/agents $(HOME)/.codex/skills $(HOME)/.codex/agents
 	for skill in $(SKILLS); do \
 		ln -sfn "$(CURDIR)/.agents/skills/$$skill" "$(HOME)/.claude/skills/$$skill"; \
-		ln -sfn "$(CURDIR)/.agents/skills/$$skill" "$(HOME)/.agents/skills/$$skill"; \
+		ln -sfn "$(CURDIR)/.agents/skills/$$skill" "$(HOME)/.codex/skills/$$skill"; \
 	done
 	for agent in $(AGENTS); do \
 		ln -sfn "$(CURDIR)/.claude/agents/$$agent.md" "$(HOME)/.claude/agents/$$agent.md"; \
@@ -47,5 +49,5 @@ install: check-agents
 
 uninstall:
 	uv tool uninstall jaanch || true
-	for skill in $(SKILLS); do rm -f "$(HOME)/.claude/skills/$$skill" "$(HOME)/.agents/skills/$$skill"; done
+	for skill in $(SKILLS); do rm -f "$(HOME)/.claude/skills/$$skill" "$(HOME)/.codex/skills/$$skill"; done
 	for agent in $(AGENTS); do rm -f "$(HOME)/.claude/agents/$$agent.md" "$(HOME)/.codex/agents/$$agent.toml"; done

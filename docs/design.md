@@ -78,8 +78,7 @@ formats. So:
   `make agents` renders them to `.claude/agents/<name>.md` and
   `.codex/agents/<name>.toml`. A test fails if the rendered files are stale.
 
-`make install` links the skill and agents into `~/.claude` and `~/.codex` /
-`~/.agents`, so either CLI can run jaanch from any directory.
+`make install` links the skills and agents into `~/.claude` and `~/.codex`, so either CLI can run jaanch from any directory.
 
 Agents do not set a model. Each one inherits the session's model, so the
 same definitions run on whatever Claude or Codex model you start with.
