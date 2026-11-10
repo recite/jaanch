@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/recite/jaanch/schema/review.schema.json",
+  "title": "jaanch review",
+  "description": "A review of one paper. Severity, kind and fix_effort use Refine's public vocabulary so reviews can be matched comment by comment.",
+  "type": "object",
+  "required": ["paper", "host", "overall", "comments"],
+  "additionalProperties": false,
+  "properties": {
+    "paper": {
+      "type": "object",
+      "required": ["title", "source_path", "sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {"type": "string", "minLength": 1},
+        "source_path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": ["name", "model"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"enum": ["claude_code", "codex"]},
+        "model": {"type": "string", "minLength": 1}
+      }
+    },
+    "overall": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "required": ["title", "message", "comment_ids"],
+        "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "comment_ids": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "comments": {"type": "array", "items": {"$ref": "#/$defs/comment"}}
+  },
+  "$defs": {
+    "revision_verdict": {
+      "description": "One line of the revision check: was a prior comment addressed in the revised paper?",
+      "type": "object",
+      "required": ["source_comment_id", "status", "note"],
+      "additionalProperties": false,
+      "properties": {
+        "source_comment_id": {"type": "string"},
+        "status": {"enum": ["fully_addressed", "partially_addressed", "not_addressed", "indeterminate"]},
+        "note": {"type": "string", "minLength": 1},
+        "quote": {"description": "Revised text that addresses the comment, verbatim, when there is one.", "type": "string"}
+      }
+    },
+    "comment": {
+      "type": "object",
+      "required": [
+        "id",
+        "goal",
+        "title",
+        "quote",
+        "location",
+        "message",
+        "suggestion",
+        "severity",
+        "kind",
+        "fix_effort"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]+_[0-9]{3}$"},
+        "goal": {
+          "description": "The subagent that raised it.",
+          "enum": ["reasoning", "consistency", "completeness", "references", "prior_art", "writing"]
+        },
+        "title": {"type": "string", "minLength": 1, "maxLength": 120},
+        "quote": {
+          "description": "Text copied verbatim from the paper. jaanch check rejects a quote it cannot find.",
+          "type": "string",
+          "minLength": 8
+        },
+        "location": {"description": "Section, equation, table or page, e.g. 'Section 3.2, eq. (7)'.", "type": "string", "minLength": 1},
+        "message": {"description": "What is wrong and why it matters.", "type": "string", "minLength": 1},
+        "suggestion": {"type": "string"},
+        "severity": {
+          "description": "critical: central and blocks the conclusion. major: central to a main claim. minor: a real but contained error. suggestion: not wrong, an improvement.",
+          "enum": ["critical", "major", "minor", "suggestion"]
+        },
+        "kind": {
+          "enum": [
+            "substance/factual_error",
+            "substance/contradiction",
+            "substance/reasoning",
+            "substance/methodology",
+            "substance/missing_content",
+            "evidence/unsupported_claim",
+            "evidence/citation",
+            "evidence/data",
+            "presentation/clarity",
+            "presentation/structure",
+            "presentation/language",
+            "presentation/formatting",
+            "compliance/legal_regulatory",
+            "compliance/ethics",
+            "compliance/guidelines",
+            "other/other"
+          ]
+        },
+        "fix_effort": {"enum": ["edit_in_place", "rework", "new_work"]},
+        "verification": {
+          "description": "Set by verify_finding. Refuted comments are dropped, not kept with a status.",
+          "type": "object",
+          "required": ["status", "note"],
+          "additionalProperties": false,
+          "properties": {
+            "status": {"enum": ["confirmed", "plausible"]},
+            "note": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  }
+}

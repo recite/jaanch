@@ -1,0 +1,45 @@
+[project]
+name = "jaanch"
+version = "0.1.0"
+description = "Check a draft paper for the errors an expert referee would catch, with Claude Code or Codex subagents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Gaurav Sood" }]
+keywords = ["peer review", "referee", "research integrity", "claude code", "codex", "agents"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = ["jsonschema>=4.26", "rapidfuzz>=3.14"]
+
+[project.urls]
+Homepage = "https://github.com/recite/jaanch"
+Issues = "https://github.com/recite/jaanch/issues"
+
+[project.scripts]
+jaanch = "jaanch.cli:main"
+
+[dependency-groups]
+dev = [
+    "black>=25.1",
+    "flake8>=7.3",
+    "isort>=6.0",
+    "pep8-naming>=0.15",
+    "pytest>=8.4",
+    "pyyaml>=6.0",
+    "tomli-w>=1.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 110
+
+[tool.isort]
+profile = "black"
+line_length = 110
