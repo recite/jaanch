@@ -31,7 +31,7 @@ Rules:
 
 - **Sections are units of review work, not just headings.** Aim for 3–12
   sections of 800–4,000 words. Split a long section at a subheading. Merge
-  front matter and very short sections into a neighbour. Appendices with
+  front matter and very short sections into a neighbor. Appendices with
   proofs are their own sections. Line ranges must cover the whole file
   without gaps, so that no text goes unreviewed.
 - `main_claims`: the 3–8 claims the paper would fail without, usually stated

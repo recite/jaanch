@@ -1,7 +1,7 @@
 # What users report about Refine
 
 Collected 2026-11-09. "Firsthand" means the author ran Refine on their own
-paper. Refine's own claims and competitors' comparisons are labelled as such.
+paper. Refine's own claims and competitors' comparisons are labeled as such.
 
 ## The two independent measurements
 
