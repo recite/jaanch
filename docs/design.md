@@ -86,7 +86,7 @@ same definitions run on whatever Claude or Codex model you start with.
 ## Open decisions
 
 - **PDF ingest.** The quote check needs text. The candidates are docling (MIT,
-  local, heavy install), marker (restrictive model licence) and Mistral OCR
+  local, heavy install), marker (restrictive model license) and Mistral OCR
   (paid, what coarse uses). Recommended: docling as an optional extra. Until
   ingest exists, give jaanch `.tex`, `.md` or text.
 - **Network access in Codex.** `jaanch_check_references` and `jaanch_check_prior_art` need
