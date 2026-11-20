@@ -11,13 +11,16 @@ Neither request carries the user's email. Set OPENALEX_API_KEY for OpenAlex's
 per-key budget; without it requests share a small daily budget per IP.
 """
 
+import ipaddress
 import json
 import os
 import re
+import socket
 import subprocess
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 from jsonschema import Draft202012Validator
 
@@ -327,14 +330,56 @@ def unscreened(folder: Path) -> list[dict]:
     return [row for work_id, row in load_candidates(folder).items() if work_id not in decisions]
 
 
+MAX_REDIRECTS = 5
+
+
+def check_public_url(url: str) -> None:
+    """Refuse a URL unless it is http(s) and every address its host resolves to is public.
+
+    PDF links come from third-party metadata, so a planted record could
+    point the fetcher at this machine or its local network. The check runs
+    before every hop; a host that re-resolves to a private address between
+    the check and the request (DNS rebinding) is not covered.
+    """
+    parts = urlparse(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ValueError(f"refusing {url!r}: only http and https URLs are fetched")
+    try:
+        infos = socket.getaddrinfo(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80))
+    except socket.gaierror as error:
+        raise ValueError(f"refusing {url!r}: host does not resolve ({error})") from error
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0])
+        if not address.is_global:
+            raise ValueError(f"refusing {url!r}: {parts.hostname} resolves to non-public {address}")
+
+
+def get_public(url: str):
+    """GET a public URL, following redirects by hand so each hop is checked."""
+    import requests
+
+    for _ in range(MAX_REDIRECTS + 1):
+        check_public_url(url)
+        response = requests.get(
+            url,
+            timeout=60,
+            headers={"User-Agent": "jaanch (literature mapping)"},
+            stream=True,
+            allow_redirects=False,
+        )
+        if not response.is_redirect:
+            return response
+        url = urljoin(url, response.headers["Location"])
+        response.close()
+    raise ValueError(f"more than {MAX_REDIRECTS} redirects")
+
+
 def fetch(folder: Path, decisions_wanted: tuple[str, ...] = ("include",)) -> dict[str, str]:
     """Download open PDFs of works with the given screening decisions and extract text. Returns id -> outcome.
 
     Fetching "unsure" works lets a screener decide from the full text when
     the abstract is empty.
     """
-    import requests
-
     candidates, decisions = load_candidates(folder), screen_decisions(folder)
     (folder / FULLTEXT).mkdir(exist_ok=True)
     outcomes = {}
@@ -351,9 +396,7 @@ def fetch(folder: Path, decisions_wanted: tuple[str, ...] = ("include",)) -> dic
             continue
         pdf_path = folder / FULLTEXT / f"{work_id}.pdf"
         try:
-            response = requests.get(
-                url, timeout=60, headers={"User-Agent": "jaanch (literature mapping)"}, stream=True
-            )
+            response = get_public(url)
             response.raise_for_status()
             size = 0
             with pdf_path.open("wb") as out:

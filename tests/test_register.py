@@ -69,3 +69,14 @@ def test_page_embeds_every_check(tmp_path):
     data = json.loads(text.split('<script id="data" type="application/json">')[1].split("</script>")[0])
     assert len(data["rows"]) == len(register.load_register())
     assert {m["title"] for m in data["modules"]} >= {"Randomized experiments", "Universal checks"}
+
+
+def test_sources_bib_has_unique_keys_and_a_doi_or_note():
+    import re
+    from importlib.resources import files
+
+    text = files("jaanch").joinpath("checks", "sources.bib").read_text()
+    entries = re.findall(r"@\w+\{([^,]+),(.*?)\n\}", text, re.S)
+    keys = [key for key, _ in entries]
+    assert len(entries) >= 40 and len(keys) == len(set(keys))
+    assert all("doi = {10." in body or "note = {" in body for _, body in entries)

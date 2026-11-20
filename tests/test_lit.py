@@ -180,3 +180,42 @@ def test_prefilter_second_set_is_waived_for_short_abstracts(tmp_path):
     lit.add_works(tmp_path, works, "s")
     assert lit.prefilter(tmp_path, ["turnout"], also=["experiment", "random"]) == 2
     assert sorted(lit.screen_decisions(tmp_path)) == ["W1", "W3"]
+
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "file:///etc/passwd",
+        "http://127.0.0.1/x.pdf",
+        "http://10.0.0.5/x.pdf",
+        "http://169.254.169.254/latest",
+        "http://[::1]/x.pdf",
+        "ftp://8.8.8.8/x.pdf",
+        "http://192.168.1.1/x.pdf",
+    ],
+)
+def test_non_public_urls_are_refused(url):
+    with pytest.raises(ValueError, match="refusing"):
+        lit.check_public_url(url)
+
+
+def test_public_ip_is_allowed():
+    lit.check_public_url("https://8.8.8.8/x.pdf")
+
+
+def test_redirects_are_rechecked(monkeypatch):
+    class Response:
+        is_redirect = True
+        headers = {"Location": "http://127.0.0.1/secret"}
+
+        def close(self):
+            pass
+
+    import requests
+
+    monkeypatch.setattr(requests, "get", lambda *a, **k: Response())
+    with pytest.raises(ValueError, match="non-public 127.0.0.1"):
+        lit.get_public("https://8.8.8.8/start.pdf")
