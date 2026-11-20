@@ -28,6 +28,7 @@ is our inference from that schema.
 | [Refine](https://refine.ink) | closed source, about $40–50 a review | the comment vocabulary and the single-review baseline design |
 | [coarse](https://github.com/davidvandijcke/coarse) | MIT license, Python; calls `claude -p` or `codex exec` as a plain model | its pipeline order (structure → overview → parallel section agents → proof checks → editorial dedupe → quote verification); a second baseline |
 | [Nguyen et al. 2026](https://arxiv.org/abs/2606.19749) | an independent benchmark of review agents using injected errors | the seeded-error method behind test set S |
+| [Chau and Little 2026](https://osf.io/preprints/socarxiv/zk26u_v1) (AMICUS) | method-specific and universal checklists built from the methods literature, applied by a model to 798 political science preprints; the checklists are announced but not yet public | fixed design checklists for `jaanch_check_completeness`, routing a paper to them, the per-check fields (applies to, pass if, flag if, if silent, severity, sources) and a per-paper importance rating of each flag. Their finding behind this: a review by the same model without a checklist misses issues the checklists catch |
 | [retract](https://github.com/recite/retract) | ours | retraction checks in `jaanch_check_references` |
 
 **Why not use coarse as it is.** coarse runs the pipeline from Python and uses
@@ -44,7 +45,8 @@ coarse.
 ```
 paper (.md/.tex/.txt; PDF via ingest)
   │
-  ├─ jaanch_map_paper ─────────────► map.json: sections, main claims, numbers, references
+  ├─ jaanch_map_paper ─────────────► map.json: sections, main claims, numbers, references,
+  │                                   designs (routes the paper to design checklists)
   │
   ├─ fan out, in parallel ──► candidates/<goal>[_<section>].jsonl
   │    jaanch_check_reasoning × each section
@@ -53,6 +55,9 @@ paper (.md/.tex/.txt; PDF via ingest)
   │    jaanch_check_references
   │    jaanch_check_prior_art
   │    jaanch_check_writing
+  │
+  ├─ jaanch coverage              (every routed check has a verdict in checklists.jsonl;
+  │                                 every major or minor flag has a comment)
   │
   ├─ jaanch merge                 (drops comments whose quote is not in the paper)
   │

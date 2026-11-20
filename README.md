@@ -24,7 +24,7 @@ section, in parallel:
 |---|---|
 | logic, derivations, proofs, method, overclaiming | `jaanch_check_reasoning` |
 | text, tables, figures and numbers agree; recomputes what it can | `jaanch_check_consistency` |
-| what a paper of this design must report but leaves out | `jaanch_check_completeness` |
+| what a paper of this design must report but leaves out, first against fixed design checklists | `jaanch_check_completeness` |
 | cited works exist, are not retracted, and say what is claimed | `jaanch_check_references` |
 | novelty claims that miss published work | `jaanch_check_prior_art` |
 | passages that make readers work too hard | `jaanch_check_writing` |
@@ -59,6 +59,15 @@ Use jaanch-recheck on paper_v2.tex against reviews/paper/review.json
 ```
 
 Input is `.tex`, `.md` or plain text for now; PDF ingest is not built yet.
+
+### Design checklists
+
+`jaanch checklists` lists the design checklists in `src/jaanch/checklists/`,
+and `jaanch checklist <module>` prints one. The mapper routes each paper to
+the checklists for its designs (`designs` in `map.json`). The completeness
+finder gives every check a verdict in `checklists.jsonl` and rates each flag
+`major`, `minor` or `negligible` for this paper. `jaanch coverage <run>`
+fails if a check has no verdict or a `major` or `minor` flag has no comment.
 
 ## Develop
 

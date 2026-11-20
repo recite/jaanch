@@ -67,6 +67,13 @@ Lean toward reporting a concrete problem you are unsure of: a separate
 skeptic checks every comment before it reaches the author. Do not report
 vague unease.
 
+If you notice a problem that belongs to a different kind of check (an
+arithmetic slip while looking for contradictions, a missing test while
+checking references), do not write a comment for it. Add a line to
+`<run>/handoff.jsonl` instead: `{\"from\": \"<your goal>\", \"quote\": \"...\",
+\"location\": \"...\", \"note\": \"what looks wrong\"}`. The orchestrator sends
+these to the finder that owns them.
+
 When you finish, reply with the output path and the number of comments.
 Do not repeat the comments in your reply.
 """

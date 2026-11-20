@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "jaanch design checklists and the completeness finder's audit of them",
+  "$defs": {
+    "checklist": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "module",
+        "title",
+        "prefix",
+        "designs",
+        "applies_when",
+        "checks"
+      ],
+      "properties": {
+        "module": {
+          "type": "string",
+          "pattern": "^[a-z][a-z_]*$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prefix": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,5}$"
+        },
+        "applies_when": {
+          "type": "string",
+          "minLength": 20
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/check"
+          }
+        },
+        "designs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "paper-model designs that route a paper to this checklist; universal lists every empirical design"
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "register",
+        "pillar",
+        "category",
+        "requirement",
+        "applies_to",
+        "pass_if",
+        "flag_if",
+        "if_silent",
+        "severity",
+        "sources"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]{2,5}-[A-Z]+-[0-9]{2}$"
+        },
+        "category": {
+          "enum": [
+            "identification",
+            "estimation",
+            "inference",
+            "robustness",
+            "data",
+            "reporting",
+            "derivation"
+          ]
+        },
+        "requirement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "applies_to": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pass_if": {
+          "type": "string",
+          "minLength": 1
+        },
+        "flag_if": {
+          "type": "string",
+          "minLength": 1
+        },
+        "if_silent": {
+          "enum": [
+            "flag",
+            "pass",
+            "not_applicable"
+          ]
+        },
+        "severity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "pillar": {
+          "enum": [
+            "record",
+            "construct",
+            "internal",
+            "statistical",
+            "external",
+            "claim_fit",
+            "contribution"
+          ]
+        },
+        "register": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "the register checks this decision rule implements"
+        }
+      }
+    },
+    "audit_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check",
+        "status",
+        "note"
+      ],
+      "properties": {
+        "check": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pass",
+            "flag",
+            "not_applicable"
+          ]
+        },
+        "importance": {
+          "enum": [
+            "negligible",
+            "minor",
+            "major"
+          ]
+        },
+        "location": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "flag"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "importance"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "importance"
+          ]
+        }
+      }
+    }
+  }
+}

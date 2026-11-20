@@ -29,7 +29,9 @@ ci: lint check-agents test
 
 ci-docker:
 	docker run --rm -v "$(CURDIR)":/src -w /src python:3.12-slim \
-		sh -c "pip install -q uv && apt-get update -qq && apt-get install -y -qq --no-install-recommends make texlive-extra-utils >/dev/null \
+		sh -c "pip install -q uv && apt-get update -qq \
+		&& apt-get install -y -qq --no-install-recommends make build-essential texlive-extra-utils poppler-utils r-base-core r-base-dev >/dev/null \
+		&& Rscript -e 'install.packages(c(\"statcheck\", \"scrutiny\", \"jsonlite\"), repos=\"https://cloud.r-project.org\", quiet=TRUE)' \
 		&& UV_PROJECT_ENVIRONMENT=/tmp/venv make ci"
 
 # Links rather than copies, so edits in this repo reach both CLIs at once.

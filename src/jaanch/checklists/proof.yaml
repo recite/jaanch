@@ -1,0 +1,30 @@
+module: proof
+title: Formal results and proofs
+prefix: PRF
+designs: [proof]
+applies_when: >-
+  The paper states and proves propositions, lemmas or theorems, or derives a
+  result step by step.
+checks:
+  - id: PRF-DERIV-01
+    register: [reasoning.theorem_hypotheses_unverified]
+    pillar: claim_fit
+    category: derivation
+    requirement: When a proof invokes a named theorem, show that the theorem's hypotheses hold in this setting.
+    applies_to: Proofs that cite an outside result (for example a fixed-point, envelope, implicit-function or convergence theorem).
+    pass_if: Each hypothesis of the cited result (compactness, continuity, convexity, differentiability, integrability) is checked or follows from a stated assumption.
+    flag_if: A theorem is invoked and at least one of its hypotheses is neither verified nor assumed.
+    if_silent: flag
+    severity: high
+    sources: []
+  - id: PRF-DERIV-02
+    register: [reasoning.proof_cases_incomplete]
+    pillar: claim_fit
+    category: derivation
+    requirement: A proof by cases must cover every case, including boundary and equality cases.
+    applies_to: Proofs that split into cases or that rely on strict inequalities.
+    pass_if: The cases are exhaustive, and boundary cases (equality, zero, corner solutions) are handled or ruled out by assumption.
+    flag_if: A case or boundary is left out.
+    if_silent: pass
+    severity: high
+    sources: []

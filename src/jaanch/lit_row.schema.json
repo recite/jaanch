@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "One row of a literature map: a compact paper model of a related quantitative study. Definitions shared with paper_model.schema.json are merged in at load time.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "citation", "question", "designs", "data", "sample", "x", "y", "results"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^W\\d+$", "description": "OpenAlex work id, as in candidates.jsonl"},
+    "citation": {"type": "string", "minLength": 1},
+    "question": {"type": "string", "minLength": 1},
+    "designs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/row_design"}},
+    "data": {"$ref": "#/$defs/row_data"},
+    "sample": {"$ref": "#/$defs/row_sample"},
+    "x": {"$ref": "#/$defs/measure"},
+    "y": {"$ref": "#/$defs/measure"},
+    "estimand": {"$ref": "#/$defs/estimand"},
+    "results": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/result"}},
+    "authors_limitations": {"type": "array", "items": {"$ref": "#/$defs/quoted"}},
+    "notes": {"type": "string"}
+  },
+  "$defs": {
+    "quoted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "quote"],
+      "properties": {"text": {"type": "string"}, "quote": {"type": "string", "minLength": 8}, "location": {"type": "string"}}
+    },
+    "row_design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["design", "quote"],
+      "properties": {
+        "design": {"type": "string", "pattern": "^(descriptive|experiment|did|rd|iv|panel|matching|synth|measurement|survey|text|structural|ml|meta|proof|other:[a-z_]+)$"},
+        "note": {"type": "string", "description": "identification detail, e.g. 'randomized at household level, stratified by ward'"},
+        "quote": {"type": "string", "minLength": 8}
+      }
+    },
+    "row_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "quote"],
+      "properties": {
+        "source": {"type": "string"},
+        "kind": {"enum": ["survey", "experiment", "administrative", "observational", "text", "scraped", "simulated", "secondary", "other"]},
+        "setting": {"type": "string", "description": "country, place, institution"},
+        "period": {"type": "string"},
+        "quote": {"type": "string", "minLength": 8}
+      }
+    },
+    "row_sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n", "unit", "quote"],
+      "properties": {
+        "n": {"type": "string", "description": "as reported, or 'not stated'"},
+        "unit": {"type": "string"},
+        "how_drawn": {"type": "string"},
+        "concerns": {"type": "array", "items": {"$ref": "#/$defs/concern"}},
+        "quote": {"type": "string", "minLength": 8}
+      }
+    },
+    "concern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["concern", "raised_by"],
+      "properties": {
+        "concern": {"type": "string", "description": "e.g. selection, attrition, small clusters, non-representative frame"},
+        "raised_by": {"enum": ["authors", "extractor"], "description": "authors: the paper says it; extractor: inferred from what the paper reports"},
+        "quote": {"type": "string", "minLength": 8}
+      }
+    },
+    "measure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variable", "measured_how", "quote"],
+      "properties": {
+        "variable": {"type": "string"},
+        "measured_how": {"type": "string", "description": "instrument, coding, source; or 'not stated'"},
+        "quote": {"type": "string", "minLength": 8}
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimate", "uncertainty", "units", "quote", "location"],
+      "properties": {
+        "description": {"type": "string", "description": "which contrast or specification"},
+        "estimate": {"type": "string"},
+        "uncertainty": {"type": "string", "description": "SE, CI or p as reported, or 'not stated'"},
+        "units": {"type": "string"},
+        "baseline": {"type": "string", "description": "comparison-group level, if reported"},
+        "n": {"type": "string"},
+        "quote": {"type": "string", "minLength": 1},
+        "location": {"type": "string", "description": "e.g. 'Table 2, col 1'"}
+      }
+    }
+  }
+}

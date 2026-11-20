@@ -8,6 +8,7 @@ import unicodedata
 from pathlib import Path
 
 from jaanch.check import check_comment, check_verdict, normalize_text, read_jsonl, sha256_file
+from jaanch.intake import inventory
 
 TEXT_SUFFIXES = {".md", ".markdown", ".tex", ".txt"}
 FIGURE_PATTERN = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
@@ -22,7 +23,7 @@ MAX_EXPANSION_FACTOR = 2
 # latexpand's own comment stripping cuts \\href{...%20...} at the %, losing the
 # rest of the line, so comments are kept there and stripped here instead.
 URL_ARGUMENT = re.compile(r"\\(?:url|href)\{[^{}]*\}")
-COMMENT = re.compile(r"(?<!\\)%.*$", re.MULTILINE)
+COMMENT = re.compile(r"(^|[^\\])((?:\\\\)*)%.*$", re.MULTILINE)
 # A zero-argument \newcommand whose body nests braces at most one level deep.
 MACRO_DEFINITION = re.compile(r"\\newcommand\*?\{?\\([A-Za-z]+)\}?\{((?:[^{}#]|\{[^{}#]*\})*)\}")
 
@@ -34,14 +35,22 @@ def slugify(name: str) -> str:
 
 def strip_comments(text: str) -> str:
     """Remove LaTeX comments and anything after \\end{document}, sparing URLs."""
-    end = text.find("\\end{document}")
+    urls = []
+    prefix = "\x00jaanch_url_"
+    while prefix in text:
+        prefix += "x"
+
+    def mask_url(match: re.Match) -> str:
+        urls.append(match.group())
+        return f"{prefix}{len(urls) - 1}\x00"
+
+    masked = URL_ARGUMENT.sub(mask_url, text)
+    masked = COMMENT.sub(r"\1\2", masked)
+    stripped = re.sub(re.escape(prefix) + r"(\d+)\x00", lambda m: urls[int(m[1])], masked)
+    end = stripped.find("\\end{document}")
     if end != -1:
-        text = text[: end + len("\\end{document}")] + "\n"
-    urls = URL_ARGUMENT.findall(text)
-    masked = URL_ARGUMENT.sub("\x00", text)
-    masked = COMMENT.sub("", masked)
-    pieces = masked.split("\x00")
-    return "".join(piece + url for piece, url in zip(pieces, urls + [""]))
+        stripped = stripped[: end + len("\\end{document}")] + "\n"
+    return stripped
 
 
 def project_root(paper: Path) -> Path:
@@ -153,16 +162,33 @@ def find_figures(text: str, base: Path, root: Path) -> list[str]:
     return figures
 
 
-def start_run(paper: Path, reviews_dir: Path, name: str | None = None, root: Path | None = None) -> Path:
-    """Write the paper's full text to reviews/<slug>/paper.txt and record what was reviewed."""
+def start_run(target: Path, reviews_dir: Path, name: str | None = None, root: Path | None = None) -> Path:
+    """Inventory the submission, write the manuscript's text to reviews/<slug>/paper.txt, and record both.
+
+    `target` is a manuscript or a folder. A manuscript is the whole
+    submission: code and data are inventoried only when a folder is given,
+    because a file inside a repository need not belong to it. LaTeX inputs
+    still resolve from the project root.
+    """
+    # The root is checked before it is walked, so a bad --root never gets read.
+    if target.is_dir():
+        root = (root or target).resolve()
+        check_root(root, target)
+        inv = inventory(root)
+        if inv["manuscript"]["path"] is None:
+            raise ValueError(f"no manuscript found in {target}; jaanch intake lists what is there")
+        paper = root / inv["manuscript"]["path"]
+    else:
+        paper = target
+        root = (root or project_root(paper)).resolve()
+        check_root(root, paper)
+        inv = inventory(paper)
     suffix = paper.suffix.casefold()
     if suffix not in TEXT_SUFFIXES:
         raise ValueError(
             f"{paper.suffix} is not supported yet; give jaanch .md, .tex or .txt "
             "(PDF ingest is an open decision in docs/design.md)"
         )
-    root = (root or project_root(paper)).resolve()
-    check_root(root, paper)
     if suffix == ".tex":
         text, method = flatten_latex(paper, root)
     else:
@@ -171,6 +197,7 @@ def start_run(paper: Path, reviews_dir: Path, name: str | None = None, root: Pat
     run_dir = reviews_dir / slugify(name or paper.stem)
     (run_dir / "candidates").mkdir(parents=True, exist_ok=True)
     (run_dir / "paper.txt").write_text(text)
+    (run_dir / "inventory.json").write_text(json.dumps(inv, indent=2) + "\n")
     run = {
         "source_path": str(paper.resolve()),
         "sha256": sha256_file(run_dir / "paper.txt"),

@@ -1,0 +1,97 @@
+module: experiment
+title: Randomized experiments
+prefix: EXP
+designs: [experiment]
+applies_when: >-
+  The paper's own analysis randomly assigns units to conditions: field, lab,
+  online or survey experiments, and randomized trials.
+checks:
+  - id: EXP-IDENT-01
+    register: [reporting.randomization_described]
+    pillar: internal
+    category: identification
+    requirement: Describe the randomization, including the unit of assignment, the method, and any blocking or stratification.
+    applies_to: Every randomized experiment.
+    pass_if: The paper says what was randomized, at what level (individual, household, cluster), and how (simple, blocked, stratified, cluster).
+    flag_if: The paper says units were randomly assigned but not how or at what level.
+    if_silent: flag
+    severity: high
+    sources:
+      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, items 8-10
+  - id: EXP-DATA-01
+    register: [reporting.attrition_by_arm]
+    pillar: internal
+    category: data
+    requirement: Report attrition or non-compliance by arm and address whether it differs across arms.
+    applies_to: Experiments where outcomes are missing for some assigned units, or where some units did not receive their assigned condition.
+    pass_if: The paper reports the number lost or non-compliant in each arm and tests or discusses differential attrition.
+    flag_if: Attrition is reported only overall, or not at all, when outcomes are not observed for every assigned unit.
+    if_silent: flag
+    severity: high
+    sources:
+      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, item 13
+      - Gerber and Green (2012), Field Experiments, ch. 7
+  - id: EXP-REPORT-01
+    register: [reporting.baseline_by_arm]
+    pillar: internal
+    category: reporting
+    requirement: Report baseline characteristics by arm.
+    applies_to: Every randomized experiment with pre-treatment covariates.
+    pass_if: A table or passage gives baseline covariates by arm. Significance tests of balance are not required.
+    flag_if: No baseline comparison by arm appears.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, item 15
+      - Mutz, Pemantle and Pham (2019), The Perils of Balance Testing in Experimental Design, The American Statistician 73(1)
+  - id: EXP-REPORT-02
+    register: [reporting.prereg_primary_outcome]
+    pillar: record
+    category: reporting
+    requirement: If the study was pre-registered, identify the pre-registered primary outcome and analysis and report every deviation from the plan.
+    applies_to: Experiments that mention a pre-registration or pre-analysis plan.
+    pass_if: The paper names the primary outcome from the plan, reports that analysis, and lists deviations or says there were none.
+    flag_if: The paper cites a plan but does not say which result is the pre-registered primary one, or changes outcomes or analyses without saying so.
+    if_silent: not_applicable
+    severity: high
+    sources:
+      - Nosek et al. (2018), The preregistration revolution, PNAS 115(11)
+      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, items 6 and 23
+  - id: EXP-INFER-01
+    register: [inference.experiment_cluster_assignment_level]
+    pillar: statistical
+    category: inference
+    requirement: When treatment is assigned to clusters, compute standard errors at the level of assignment.
+    applies_to: Experiments that randomize groups (households, schools, villages, precincts) rather than individuals.
+    pass_if: Standard errors are clustered at, or the analysis is conducted at, the level of assignment.
+    flag_if: Clusters are assigned but inference treats individuals as independent.
+    if_silent: flag
+    severity: high
+    sources:
+      - Gerber and Green (2012), Field Experiments, ch. 3
+      - Abadie, Athey, Imbens and Wooldridge (2023), When Should You Adjust Standard Errors for Clustering?, Quarterly Journal of Economics 138(1)
+  - id: EXP-CONSTRUCT-01
+    register: [construct.manipulation_check]
+    pillar: construct
+    category: data
+    requirement: Show that the manipulation changed the construct it is meant to change, not only that it was delivered.
+    applies_to: Experiments whose treatment is meant to change a psychological or informational state (belief, salience, emotion, knowledge) that then explains the outcome.
+    pass_if: The paper reports a manipulation check or other evidence that the treatment moved the intended construct, or presents the effect only as the effect of the treatment as delivered.
+    flag_if: The paper attributes the effect to a construct the treatment was meant to change but shows no evidence it changed.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3
+  - id: EXP-EXTERNAL-01
+    register: [inference.sampling_generalizability, reporting.eligibility_sampling]
+    pillar: external
+    category: reporting
+    requirement: State the population the experimental sample represents, and keep claims about effects elsewhere or at scale to what that supports.
+    applies_to: Every randomized experiment.
+    pass_if: The paper describes how the sample was drawn relative to a target population, and claims beyond it are argued or labeled as conjecture.
+    flag_if: Effects are generalized to a population, setting or scale of rollout the sample does not represent, with no stated basis.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Deaton and Cartwright (2018), Understanding and Misunderstanding Randomized Controlled Trials, Social Science & Medicine 210
+      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3

@@ -63,6 +63,20 @@ def anchor_quote(quote: str, paper_normalized: str) -> str | None:
     return None
 
 
+def locate_line(quote: str, text: str) -> int | None:
+    """The line where a quote starts, after the normalization quote anchoring uses; None if absent."""
+    starts, pieces, offset = [], [], 0
+    for line in text.splitlines():
+        piece = normalize_text(line)
+        starts.append(offset)
+        pieces.append(piece)
+        offset += len(piece) + 1
+    position = " ".join(pieces).find(normalize_text(quote))
+    if position < 0:
+        return None
+    return max(number for number, start in enumerate(starts, start=1) if start <= position)
+
+
 def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 

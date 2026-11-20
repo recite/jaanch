@@ -1,0 +1,35 @@
+module: latent_comparison
+title: Latent variables compared across groups or time
+prefix: LAT
+designs: [measurement]
+applies_when: >-
+  The paper's own analysis fits a measurement model (factor analysis, SEM,
+  IRT) or a multi-item scale, and compares its scores, means or paths across
+  groups, countries or waves.
+checks:
+  - id: LAT-DATA-01
+    register: [measurement.measurement_invariance]
+    pillar: construct
+    category: data
+    requirement: Before comparing latent means or structural paths across groups or waves, test measurement invariance at the level the comparison needs.
+    applies_to: Papers comparing latent means, scale scores or paths across groups or over time.
+    pass_if: The paper reports configural, metric and (for mean comparisons) scalar invariance tests, or partial invariance with the freed parameters named.
+    flag_if: The comparison is made with no invariance test.
+    if_silent: flag
+    severity: high
+    sources:
+      - Vandenberg and Lance (2000), Organizational Research Methods 3(1)
+      - Putnick and Bornstein (2016), Developmental Review 41
+  - id: LAT-REPORT-01
+    register: [reporting.sem_estimator_fit]
+    pillar: construct
+    category: reporting
+    requirement: Report the estimator and the model's fit indices.
+    applies_to: Papers that fit a confirmatory factor model or SEM.
+    pass_if: The paper names the estimator (for example ML, MLR, WLSMV) and reports chi-square with degrees of freedom and at least one approximate fit index (CFI, RMSEA, SRMR).
+    flag_if: Fit is described only as good or adequate, or the estimator is not named.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Hu and Bentler (1999), Structural Equation Modeling 6(1)
+      - Appelbaum et al. (2018), American Psychologist 73(1)

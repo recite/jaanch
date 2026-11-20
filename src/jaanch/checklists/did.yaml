@@ -1,0 +1,74 @@
+module: did
+title: Difference-in-differences and event studies
+prefix: DID
+designs: [did]
+applies_when: >-
+  The paper's own analysis compares changes over time between treated and
+  untreated units: difference-in-differences, two-way fixed effects with a
+  treatment indicator, or event studies.
+checks:
+  - id: DID-IDENT-01
+    register: [identification.did_parallel_trends_stated]
+    pillar: internal
+    category: identification
+    requirement: State the parallel trends assumption the estimate relies on.
+    applies_to: Every paper assigned this checklist.
+    pass_if: The paper names parallel trends (or common trends, equal counterfactual trends) as the condition behind its causal estimate.
+    flag_if: No such statement appears.
+    if_silent: flag
+    severity: high
+    sources:
+      - Chau and Little (2026), SocArXiv zk26u, Table 1 (DID-IDENT-01), adapted
+      - Angrist and Pischke (2009), Mostly Harmless Econometrics, ch. 5
+  - id: DID-IDENT-02
+    register: [identification.did_pretrends_not_pretest]
+    pillar: internal
+    category: identification
+    requirement: Show pre-treatment evidence on trends, and do not treat a non-significant pre-trend test as proof that trends are parallel.
+    applies_to: Papers with more than one pre-treatment period.
+    pass_if: The paper shows pre-period coefficients or trends and either discusses their power or reports results robust to plausible violations.
+    flag_if: No pre-period evidence is shown, or the paper concludes trends are parallel only because the pre-period estimates are insignificant.
+    if_silent: flag
+    severity: high
+    sources:
+      - Roth (2022), Pretest with Caution, American Economic Review Insights 4(3)
+      - Rambachan and Roth (2023), A More Credible Approach to Parallel Trends, Review of Economic Studies 90(5)
+  - id: DID-ESTIM-01
+    register: [identification.did_staggered_robust]
+    pillar: internal
+    category: estimation
+    requirement: With staggered treatment timing, use an estimator that is robust to effects that vary across cohorts and time, or show that two-way fixed effects is not biased in this setting.
+    applies_to: Papers where units start treatment at different times.
+    pass_if: The paper uses a heterogeneity-robust estimator (for example Callaway-Sant'Anna, Sun-Abraham, de Chaisemartin-D'Haultfoeuille, Borusyak-Jaravel-Spiess) or reports a decomposition of the TWFE weights.
+    flag_if: A staggered design is estimated only by TWFE with no such check.
+    if_silent: flag
+    severity: high
+    sources:
+      - Goodman-Bacon (2021), Journal of Econometrics 225(2)
+      - Callaway and Sant'Anna (2021), Journal of Econometrics 225(2)
+      - de Chaisemartin and D'Haultfoeuille (2020), American Economic Review 110(9)
+      - Sun and Abraham (2021), Journal of Econometrics 225(2)
+  - id: DID-INFER-01
+    register: [inference.did_cluster_treatment_level]
+    pillar: statistical
+    category: inference
+    requirement: Account for serial correlation, by clustering standard errors at the level of treatment assignment or an equivalent method.
+    applies_to: Every paper assigned this checklist.
+    pass_if: Standard errors are clustered at the level at which treatment varies (for example state), or the paper uses another method robust to serial correlation, and says how many clusters there are.
+    flag_if: Standard errors are unclustered or clustered below the level of treatment.
+    if_silent: flag
+    severity: high
+    sources:
+      - Bertrand, Duflo and Mullainathan (2004), Quarterly Journal of Economics 119(1)
+  - id: DID-EXTERNAL-01
+    register: [external.did_effect_on_treated]
+    pillar: external
+    category: reporting
+    requirement: Present the estimate as the effect on the treated units, and argue separately for any claim about untreated units or a broader rollout.
+    applies_to: Every paper assigned this checklist.
+    pass_if: The estimand is described as the average effect on the treated (or treated cohorts), and extrapolation to other units is argued or labeled.
+    flag_if: The effect on the treated is presented as the effect for all units or for a policy applied elsewhere, without argument.
+    if_silent: pass
+    severity: medium
+    sources:
+      - Roth, Sant'Anna, Bilinski and Poe (2023), What's Trending in Difference-in-Differences?, Journal of Econometrics 235(2)

@@ -1,0 +1,151 @@
+import json
+
+import pytest
+
+from jaanch import exact
+from jaanch.cli import main
+
+STARS = {"*": 0.1, "**": 0.05, "***": 0.01}
+
+
+def cell(**kw):
+    return {"id": "c1", "quote": "x", **kw}
+
+
+@pytest.mark.parametrize(
+    "row, ok",
+    [
+        (cell(coef="0.50", se="0.20", stars="**", thresholds=STARS), True),  # z = 2.5, p = .012
+        (cell(coef="0.50", se="0.30", stars="***", thresholds=STARS), False),  # z = 1.67, p = .096
+        (cell(coef="2.00", se="0.50", stars="", thresholds=STARS), False),  # z = 4 but no stars
+        (cell(coef="0.10", se="0.05", stars="**", thresholds=STARS), True),  # rounding allows p < .05
+        (cell(coef="0.10", se="0.05", stars="***", thresholds=STARS), False),  # no rounding gives p < .01
+        (cell(coef="0.50", se="0.20", t="2.5"), True),
+        (cell(coef="0.50", se="0.20", t="4.1"), False),
+        (cell(coef="0.50", se="0.20", p="0.012"), True),
+        (cell(coef="0.50", se="0.20", p="< 0.001"), False),
+        (cell(coef="1.00", se="0.25", ci_low="0.51", ci_high="1.49"), True),  # 1.96 x .25 = .49
+        (cell(coef="1.00", se="0.25", ci_low="0.80", ci_high="1.20"), False),
+        (cell(coef="1.00", se="0.25", ci_low="0.60", ci_high="1.60"), False),  # Wald width, off center
+        (cell(coef="-0.04", ci_low="-0.54", ci_high="0.25"), True),  # no SE: interval may be asymmetric
+        # Dawes paper 1's planted error (CI widened from [-.03, -.01]): at two decimals no
+        # check can see it, and a level printed as "95" must not turn the bound into NaN
+        (cell(coef="-.02", se=".01", p=".001"), True),
+        (cell(coef="-.02", se=".01", p=".001", ci_low="-.05", ci_high="-.01", ci_level="95"), True),
+        (cell(coef="1.00", se="0.25", ci_low="0.80", ci_high="1.20", ci_level="95"), False),
+        # the reported p narrows the SE: at three decimals a widened interval shows
+        (cell(coef="-.020", se=".006", p=".001", ci_low="-.050", ci_high="-.010"), False),
+        (cell(coef="-.020", se=".006", p=".001", ci_low="-.032", ci_high="-.008"), True),
+    ],
+)
+def test_coef_cell_consistency(row, ok):
+    assert (exact.check_coef(row) == []) is ok, exact.check_coef(row)
+
+
+def test_t_distribution_is_used_when_df_is_given():
+    # z = 2.0: p = .046 under the normal, .061 under t with 10 df
+    row = cell(coef="2.000", se="1.000", stars="**", thresholds=STARS)
+    assert exact.check_coef(row) == []
+    assert exact.check_coef({**row, "df": "10"}) != []
+
+
+def test_unprintable_numbers_are_refused():
+    with pytest.raises(ValueError, match="is not a number"):
+        exact.check_coef(cell(coef="0.5a", se="0.2"))
+
+
+def test_paragraphs_keep_their_first_line():
+    assert exact.paragraphs("a\nb\n\n\nc\n") == [{"id": "L1", "text": "a b"}, {"id": "L5", "text": "c"}]
+
+
+PAPER = (
+    "We found t(28) = 2.20, p = .036 for the first test.\n\n"
+    "The second was F(2, 57) = 3.10, p < .01.\n\n"
+    "Scores averaged M = 5.27 (SD = 1.10, n = 28). Table 2 reports 0.50 (0.30)***.\n"
+)
+
+
+def make_run(tmp_path, means=(), coefs=()):
+    (tmp_path / "paper.txt").write_text(PAPER)
+    (tmp_path / "exact").mkdir()
+    (tmp_path / "exact" / "means.jsonl").write_text("".join(json.dumps(r) + "\n" for r in means))
+    (tmp_path / "exact" / "coefs.jsonl").write_text("".join(json.dumps(r) + "\n" for r in coefs))
+    return tmp_path
+
+
+MEAN = {"id": "m1", "quote": "M = 5.27 (SD = 1.10, n = 28)", "x": "5.27", "sd": "1.10", "n": "28"}
+COEF = {
+    "id": "t2",
+    "quote": "0.50 (0.30)***",
+    "coef": "0.50",
+    "se": "0.30",
+    "stars": "***",
+    "thresholds": STARS,
+}
+
+
+def test_extracted_numbers_must_appear_in_their_quote(tmp_path, monkeypatch):
+    monkeypatch.setattr(exact, "r_status", lambda: (False, "test"))
+    _, problems = exact.run_exact(
+        make_run(tmp_path, means=[{**MEAN, "x": "5.72"}], coefs=[{**COEF, "quote": "nope"}])
+    )
+    messages = [p.message for p in problems]
+    assert "x '5.72' does not appear in its quote" in messages
+    assert "quote is not in paper.txt" in messages
+
+
+def test_table_cells_are_checked_without_r(tmp_path, monkeypatch):
+    monkeypatch.setattr(exact, "r_status", lambda: (False, "Rscript is not installed"))
+    summary, problems = exact.run_exact(make_run(tmp_path, coefs=[COEF]))
+    assert problems == []
+    assert summary["r"] == "Rscript is not installed" and summary["inconsistent"] == 1
+    comment = json.loads((tmp_path / "candidates" / "exact.jsonl").read_text())
+    assert comment["quote"] == "0.50 (0.30)***" and comment["goal"] == "consistency"
+    assert comment["location"] == "line 5"
+
+
+needs_r = pytest.mark.skipif(not exact.r_status()[0], reason="needs R with statcheck and scrutiny")
+
+
+@needs_r
+def test_statcheck_and_grim_through_r(tmp_path):
+    summary, problems = exact.run_exact(make_run(tmp_path, means=[MEAN], coefs=[COEF]))
+    assert problems == []
+    assert summary["statcheck"] == 2 and summary["means"] == 2
+    comments = [
+        json.loads(line) for line in (tmp_path / "candidates" / "exact.jsonl").read_text().splitlines()
+    ]
+    titles = sorted(c["title"] for c in comments)
+    assert titles == [
+        "GRIM inconsistency",
+        "GRIMMER inconsistency",
+        "Reported p does not match its test statistic",
+        "Table cell t2 does not add up",
+    ]
+    assert (
+        main(["check", str(tmp_path / "candidates" / "exact.jsonl"), "--paper", str(tmp_path / "paper.txt")])
+        == 0
+    )
+
+
+def test_plain_strips_markdown_html_and_typography():
+    text = "*r*(48) = .08, *p* = .021; *t*<sub>1</sub> and \\[-.09, .26\\] with χ² and −0.5"
+    assert exact.plain(text) == "r(48) = .08, p = .021; t 1  and [-.09, .26] with χ2 and -0.5"
+
+
+def test_plain_handles_emphasis_over_operators_and_html_superscripts():
+    assert exact.plain("χ<sup>2</sup>(3)=8.74, *p=*.033") == "χ2(3)=8.74, p=.033"
+    assert exact.plain("*t*(32)=2.23, *p=*.033") == "t(32)=2.23, p=.033"
+
+
+@pytest.mark.parametrize(
+    "row, ok",
+    [
+        ({"id": "s", "parts": ["15", "12"], "total": "27"}, True),
+        ({"id": "s", "parts": ["15", "12"], "total": "33"}, False),
+        ({"id": "s", "parts": ["48.5", "30.3", "18.2"], "percent": True}, False),  # 97.0
+        ({"id": "s", "parts": ["33.3", "33.3", "33.3"], "percent": True}, True),  # rounding
+    ],
+)
+def test_sums(row, ok):
+    assert (exact.check_sum(row) == []) is ok

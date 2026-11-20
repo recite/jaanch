@@ -1,0 +1,127 @@
+module: universal
+title: Universal checks
+prefix: UNI
+designs: [descriptive, experiment, did, rd, iv, panel, matching, synth, measurement, survey, text, structural, ml, meta]
+applies_when: >-
+  Every paper with a quantitative empirical analysis. Route it to every such
+  paper; individual checks say when they apply.
+checks:
+  - id: UNI-DATA-01
+    register: [reporting.sample_flow]
+    pillar: record
+    category: data
+    requirement: State the analytic sample size and how it was reached from the starting population, including every exclusion and the number of units it removed.
+    applies_to: Every paper that reports an estimate from data.
+    pass_if: The paper gives the final N for the main analysis and accounts for each exclusion between the starting sample and that N.
+    flag_if: The final N is missing, or units drop out between stages without a stated reason or count.
+    if_silent: flag
+    severity: high
+    sources:
+      - Simmons, Nelson and Simonsohn (2011), Psychological Science 22(11)
+      - Appelbaum et al. (2018), Journal Article Reporting Standards for Quantitative Research, American Psychologist 73(1)
+  - id: UNI-DATA-02
+    register: [reporting.missing_data]
+    pillar: record
+    category: data
+    requirement: Report how much data is missing on the key variables and how missing values were handled.
+    applies_to: Every paper whose key outcome, treatment or covariates could have missing values.
+    pass_if: The paper reports the extent of missingness for key variables and names the handling (listwise deletion, imputation, weighting, a model-based method).
+    flag_if: The paper never mentions missing data, or names a handling method without saying how much data it affects.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Appelbaum et al. (2018), American Psychologist 73(1)
+      - Little and Rubin (2019), Statistical Analysis with Missing Data, 3rd ed.
+  - id: UNI-INFER-01
+    register: [inference.power_sample_size_justified]
+    pillar: statistical
+    category: inference
+    requirement: Justify the sample size, by a power analysis or another stated rationale.
+    applies_to: Every paper whose data collection the authors controlled (experiments, surveys they fielded).
+    pass_if: The paper states why it collected this many units, for example a power analysis with its assumed effect size, or a resource constraint stated as such.
+    flag_if: The paper gives no reason for its sample size.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Lakens (2022), Sample Size Justification, Collabra Psychology 8(1)
+      - Appelbaum et al. (2018), American Psychologist 73(1)
+  - id: UNI-INFER-02
+    register: [inference.multiplicity_correction]
+    pillar: statistical
+    category: inference
+    requirement: When testing a family of related hypotheses (several outcomes, subgroups or moderators), adjust for multiple comparisons or identify which tests were pre-specified as primary.
+    applies_to: Papers that report two or more tests bearing on the same claim.
+    pass_if: The paper applies a stated correction (for example Bonferroni, Holm, Benjamini-Hochberg) or designates primary tests in advance and labels the rest exploratory.
+    flag_if: The paper draws conclusions from several unadjusted tests without designating any as primary.
+    if_silent: flag
+    severity: high
+    sources:
+      - Benjamini and Hochberg (1995), Journal of the Royal Statistical Society Series B 57(1)
+      - Simmons, Nelson and Simonsohn (2011), Psychological Science 22(11)
+  - id: UNI-INFER-03
+    register: [inference.null_not_no_effect]
+    pillar: claim_fit
+    category: inference
+    requirement: Do not read a statistically non-significant result as evidence of no effect.
+    applies_to: Papers that report a non-significant estimate and interpret it.
+    pass_if: Non-significant results are described as inconclusive, or the paper supports a null claim with an equivalence test, a bound, or the confidence interval.
+    flag_if: The paper says a non-significant estimate shows there is no effect, no difference or no relationship, without such support.
+    if_silent: pass
+    severity: high
+    sources:
+      - Altman and Bland (1995), Absence of evidence is not evidence of absence, BMJ 311
+      - Lakens, Scheel and Isager (2018), Equivalence Testing for Psychological Research, Advances in Methods and Practices in Psychological Science 1(2)
+  - id: UNI-IDENT-01
+    register: [identification.identifying_assumptions_named]
+    pillar: internal
+    category: identification
+    requirement: A causal claim from non-experimental data must name the assumptions that make the estimate causal and give a reason to believe each.
+    applies_to: Papers that make a causal claim (effect, impact, causes, leads to) from observational data.
+    pass_if: The paper states the identifying assumptions (for example no unmeasured confounding, parallel trends, exclusion) and argues for each.
+    flag_if: The paper uses causal language for an observational estimate without stating what makes it causal.
+    if_silent: flag
+    severity: high
+    sources:
+      - Hernán (2018), The C-Word, American Journal of Public Health 108(5)
+      - Chau and Little (2026), SocArXiv zk26u, which quote this check from their universal checklist
+  - id: UNI-ROBUST-01
+    register: [identification.unmeasured_confounding_sensitivity]
+    pillar: internal
+    category: robustness
+    requirement: An observational causal estimate must come with an assessment of how sensitive it is to unmeasured confounding.
+    applies_to: Papers that report a causal estimate from observational data under a selection-on-observables assumption.
+    pass_if: The paper reports a sensitivity analysis (for example an E-value, the Cinelli-Hazlett robustness value, Rosenbaum bounds) or a bound on how strong a confounder would have to be.
+    flag_if: No such assessment appears.
+    if_silent: flag
+    severity: medium
+    sources:
+      - VanderWeele and Ding (2017), Annals of Internal Medicine 167(4)
+      - Cinelli and Hazlett (2020), Journal of the Royal Statistical Society Series B 82(1)
+  - id: UNI-CONSTRUCT-01
+    register: [measurement.metric_validated, measurement.construct_substitution]
+    pillar: construct
+    category: data
+    requirement: Each key construct's measure must come with validity evidence for this use, and its items must match the construct the claims name.
+    applies_to: Every paper whose claims name a construct (attitude, trait, sentiment, wellbeing) measured by a scale, index, coding scheme or proxy.
+    pass_if: The paper cites or reports validity evidence (convergent and discriminant associations, prior validation in a comparable population) and the items or coding match the construct's name.
+    flag_if: A construct is measured with no validity evidence, or the items measure something narrower or different from what the claims call it.
+    if_silent: flag
+    severity: high
+    sources:
+      - Cronbach and Meehl (1955), Construct Validity in Psychological Tests, Psychological Bulletin 52(4)
+      - Flake, Pek and Hehman (2017), Construct Validation in Social and Personality Research, Social Psychological and Personality Science 8(4)
+      - Flake and Fried (2020), Measurement Schmeasurement, Advances in Methods and Practices in Psychological Science 3(4)
+  - id: UNI-EXTERNAL-01
+    register: [reasoning.generalization_overreach, inference.sampling_generalizability]
+    pillar: external
+    category: reporting
+    requirement: A claim about a population, setting, time or treatment beyond the one studied must state why the result should carry over.
+    applies_to: Papers whose abstract or conclusions generalize beyond the sample (people in general, other countries, other periods, a policy at scale).
+    pass_if: The paper names the target population or setting and gives a reason the result transfers (sample representative of it, mechanism argued to hold, replication elsewhere), or limits the claim to the sample.
+    flag_if: The claim reaches beyond the units, treatments, outcomes or settings studied with no stated basis.
+    if_silent: flag
+    severity: medium
+    sources:
+      - Cronbach (1982), Designing Evaluations of Educational and Social Programs
+      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3
+      - Deaton and Cartwright (2018), Understanding and Misunderstanding Randomized Controlled Trials, Social Science & Medicine 210
