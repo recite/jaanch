@@ -11,16 +11,14 @@ Neither request carries the user's email. Set OPENALEX_API_KEY for OpenAlex's
 per-key budget; without it requests share a small daily budget per IP.
 """
 
-import ipaddress
 import json
 import os
 import re
-import socket
 import subprocess
 from functools import cache
 from importlib.resources import files
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from jsonschema import Draft202012Validator
 
@@ -330,48 +328,34 @@ def unscreened(folder: Path) -> list[dict]:
     return [row for work_id, row in load_candidates(folder).items() if work_id not in decisions]
 
 
-MAX_REDIRECTS = 5
+@cache
+def _http():
+    """An HTTP client that refuses private, loopback and link-local addresses.
 
-
-def check_public_url(url: str) -> None:
-    """Refuse a URL unless it is http(s) and every address its host resolves to is public.
-
-    PDF links come from third-party metadata, so a planted record could
-    point the fetcher at this machine or its local network. The check runs
-    before every hop; a host that re-resolves to a private address between
-    the check and the request (DNS rebinding) is not covered.
+    PDF links come from third-party metadata, so a planted record could point
+    the fetcher at this machine or its local network. requests-hardened
+    resolves each host once, rejects non-public addresses, and connects to
+    the address it checked (Host header and TLS SNI kept), so a host cannot
+    re-resolve to a private address between the check and the connection;
+    every redirect hop is checked the same way.
     """
-    parts = urlparse(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
-        raise ValueError(f"refusing {url!r}: only http and https URLs are fetched")
-    try:
-        infos = socket.getaddrinfo(parts.hostname, parts.port or (443 if parts.scheme == "https" else 80))
-    except socket.gaierror as error:
-        raise ValueError(f"refusing {url!r}: host does not resolve ({error})") from error
-    for info in infos:
-        address = ipaddress.ip_address(info[4][0])
-        if not address.is_global:
-            raise ValueError(f"refusing {url!r}: {parts.hostname} resolves to non-public {address}")
+    from requests_hardened import Config, Manager
+
+    return Manager(
+        Config(
+            default_timeout=(10, 60),
+            never_redirect=False,
+            ip_filter_enable=True,
+            ip_filter_allow_loopback_ips=False,
+            user_agent_override="jaanch (literature mapping)",
+        )
+    )
 
 
 def get_public(url: str):
-    """GET a public URL, following redirects by hand so each hop is checked."""
-    import requests
-
-    for _ in range(MAX_REDIRECTS + 1):
-        check_public_url(url)
-        response = requests.get(
-            url,
-            timeout=60,
-            headers={"User-Agent": "jaanch (literature mapping)"},
-            stream=True,
-            allow_redirects=False,
-        )
-        if not response.is_redirect:
-            return response
-        url = urljoin(url, response.headers["Location"])
-        response.close()
-    raise ValueError(f"more than {MAX_REDIRECTS} redirects")
+    if urlparse(url).scheme not in ("http", "https"):
+        raise ValueError(f"refusing {url!r}: only http and https URLs are fetched")
+    return _http().send_request("GET", url, stream=True)
 
 
 def fetch(folder: Path, decisions_wanted: tuple[str, ...] = ("include",)) -> dict[str, str]:
