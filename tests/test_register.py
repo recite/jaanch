@@ -80,3 +80,14 @@ def test_sources_bib_has_unique_keys_and_a_doi_or_note():
     keys = [key for key, _ in entries]
     assert len(entries) >= 40 and len(keys) == len(set(keys))
     assert all("doi = {10." in body or "note = {" in body for _, body in entries)
+
+
+def test_bib_citations_and_unknown_keys_are_caught():
+    import copy
+
+    from jaanch.checklists import load_checklists, validate_checklists
+
+    assert register.load_bib()["cronbach1955construct"].startswith("Cronbach and Meehl (1955)")
+    modules = copy.deepcopy(load_checklists())
+    modules["did"]["checks"][0]["sources"] = ["nobody2099nothing: ch. 1"]
+    assert any("not in sources.bib" in p.message for p in validate_checklists(modules))

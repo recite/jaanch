@@ -28,6 +28,23 @@ def load_register() -> list[dict]:
     return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
+@cache
+def load_bib() -> dict[str, str]:
+    """Bib key -> 'Authors (year), Title' for checks/sources.bib, enough to cite a source in a page."""
+    import re
+
+    text = files("jaanch").joinpath("checks", "sources.bib").read_text()
+    cites = {}
+    for key, body in re.findall(r"@\w+\{([^,]+),(.*?)\n\}", text, re.S):
+        field = dict(re.findall(r"(\w+) = \{(.*?)\},?\n", body + "\n"))
+        surnames = [name.split(",")[0] for name in field.get("author", "").split(" and ")]
+        who = surnames[0] + (
+            " et al." if len(surnames) > 2 else f" and {surnames[1]}" if len(surnames) == 2 else ""
+        )
+        cites[key] = f"{who} ({field.get('year', 'n.d.')}), {field.get('title', '')}"
+    return cites
+
+
 def validate_register(rows: list[dict]) -> list[Problem]:
     schema = json.loads(files("jaanch").joinpath("register.schema.json").read_text())
     validator = Draft202012Validator(schema)
@@ -83,6 +100,7 @@ def render_page(rows: list[dict], modules: dict[str, dict]) -> str:
         "other": OTHER,
         "mechanisms": MECHANISMS,
         "pillar_text": PILLAR_TEXT,
+        "bib": load_bib(),
         "modules": [
             {"title": m["title"], "designs": m["designs"], "checks": m["checks"]}
             for name, m in modules.items()

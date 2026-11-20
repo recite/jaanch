@@ -113,8 +113,9 @@
           "type": "array",
           "items": {
             "type": "string",
-            "minLength": 1
-          }
+            "pattern": "^[a-z0-9]+(: .+)?$"
+          },
+          "description": "keys in checks/sources.bib, each optionally followed by ': ' and a locator (chapter, item, table)"
         },
         "pillar": {
           "enum": [

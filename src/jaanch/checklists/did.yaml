@@ -18,8 +18,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Chau and Little (2026), SocArXiv zk26u, Table 1 (DID-IDENT-01), adapted
-      - Angrist and Pischke (2009), Mostly Harmless Econometrics, ch. 5
+      - "chau2026peer: Table 1 (DID-IDENT-01), adapted"
+      - "angrist2009mostly: ch. 5"
   - id: DID-IDENT-02
     register: [identification.did_pretrends_not_pretest]
     pillar: internal
@@ -31,8 +31,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Roth (2022), Pretest with Caution, American Economic Review Insights 4(3)
-      - Rambachan and Roth (2023), A More Credible Approach to Parallel Trends, Review of Economic Studies 90(5)
+      - roth2022pretest
+      - rambachan2023more
   - id: DID-ESTIM-01
     register: [identification.did_staggered_robust]
     pillar: internal
@@ -44,10 +44,10 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Goodman-Bacon (2021), Journal of Econometrics 225(2)
-      - Callaway and Sant'Anna (2021), Journal of Econometrics 225(2)
-      - de Chaisemartin and D'Haultfoeuille (2020), American Economic Review 110(9)
-      - Sun and Abraham (2021), Journal of Econometrics 225(2)
+      - goodmanbacon2021difference
+      - callaway2021difference
+      - dechaisemartin2020two
+      - sun2021estimating
   - id: DID-INFER-01
     register: [inference.did_cluster_treatment_level]
     pillar: statistical
@@ -59,7 +59,7 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Bertrand, Duflo and Mullainathan (2004), Quarterly Journal of Economics 119(1)
+      - bertrand2004much
   - id: DID-EXTERNAL-01
     register: [external.did_effect_on_treated]
     pillar: external
@@ -71,4 +71,4 @@ checks:
     if_silent: pass
     severity: medium
     sources:
-      - Roth, Sant'Anna, Bilinski and Poe (2023), What's Trending in Difference-in-Differences?, Journal of Econometrics 235(2)
+      - roth2023trending

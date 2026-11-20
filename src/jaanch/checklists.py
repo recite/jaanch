@@ -71,15 +71,23 @@ def validate_checklists(checklists: dict[str, dict]) -> list[Problem]:
             if check["id"] in seen:
                 problems.append(Problem(where, f"{check['id']} is also in {seen[check['id']]}"))
             seen[check["id"]] = name
-    from jaanch.register import load_register
+    from jaanch.register import load_bib, load_register
 
     known = {row["cid"] for row in load_register()}
+    bib = load_bib()
     for name, checklist in checklists.items():
         for check in checklist.get("checks", []):
             for cid in check.get("register", []):
                 if cid not in known:
                     problems.append(
                         Problem(f"checklists/{name}.yaml", f"{check.get('id')}: {cid} is not in the register")
+                    )
+            for source in check.get("sources", []):
+                if source.split(":")[0] not in bib:
+                    problems.append(
+                        Problem(
+                            f"checklists/{name}.yaml", f"{check.get('id')}: {source} is not in sources.bib"
+                        )
                     )
     if "universal" not in checklists:
         problems.append(Problem("checklists", "there is no universal checklist"))

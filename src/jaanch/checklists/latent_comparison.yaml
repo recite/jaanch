@@ -18,8 +18,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Vandenberg and Lance (2000), Organizational Research Methods 3(1)
-      - Putnick and Bornstein (2016), Developmental Review 41
+      - vandenberg2000review
+      - putnick2016measurement
   - id: LAT-REPORT-01
     register: [reporting.sem_estimator_fit]
     pillar: construct
@@ -31,5 +31,5 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Hu and Bentler (1999), Structural Equation Modeling 6(1)
-      - Appelbaum et al. (2018), American Psychologist 73(1)
+      - hu1999cutoff
+      - appelbaum2018jars

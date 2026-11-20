@@ -17,8 +17,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Simmons, Nelson and Simonsohn (2011), Psychological Science 22(11)
-      - Appelbaum et al. (2018), Journal Article Reporting Standards for Quantitative Research, American Psychologist 73(1)
+      - simmons2011false
+      - appelbaum2018jars
   - id: UNI-DATA-02
     register: [reporting.missing_data]
     pillar: record
@@ -30,8 +30,8 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Appelbaum et al. (2018), American Psychologist 73(1)
-      - Little and Rubin (2019), Statistical Analysis with Missing Data, 3rd ed.
+      - appelbaum2018jars
+      - little2019missing
   - id: UNI-INFER-01
     register: [inference.power_sample_size_justified]
     pillar: statistical
@@ -43,8 +43,8 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Lakens (2022), Sample Size Justification, Collabra Psychology 8(1)
-      - Appelbaum et al. (2018), American Psychologist 73(1)
+      - lakens2022sample
+      - appelbaum2018jars
   - id: UNI-INFER-02
     register: [inference.multiplicity_correction]
     pillar: statistical
@@ -56,8 +56,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Benjamini and Hochberg (1995), Journal of the Royal Statistical Society Series B 57(1)
-      - Simmons, Nelson and Simonsohn (2011), Psychological Science 22(11)
+      - benjamini1995controlling
+      - simmons2011false
   - id: UNI-INFER-03
     register: [inference.null_not_no_effect]
     pillar: claim_fit
@@ -69,8 +69,8 @@ checks:
     if_silent: pass
     severity: high
     sources:
-      - Altman and Bland (1995), Absence of evidence is not evidence of absence, BMJ 311
-      - Lakens, Scheel and Isager (2018), Equivalence Testing for Psychological Research, Advances in Methods and Practices in Psychological Science 1(2)
+      - altman1995absence
+      - lakens2018equivalence
   - id: UNI-IDENT-01
     register: [identification.identifying_assumptions_named]
     pillar: internal
@@ -82,8 +82,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Hernán (2018), The C-Word, American Journal of Public Health 108(5)
-      - Chau and Little (2026), SocArXiv zk26u, which quote this check from their universal checklist
+      - hernan2018cword
+      - "chau2026peer: which quote this check from their universal checklist"
   - id: UNI-ROBUST-01
     register: [identification.unmeasured_confounding_sensitivity]
     pillar: internal
@@ -95,8 +95,8 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - VanderWeele and Ding (2017), Annals of Internal Medicine 167(4)
-      - Cinelli and Hazlett (2020), Journal of the Royal Statistical Society Series B 82(1)
+      - vanderweele2017sensitivity
+      - cinelli2020making
   - id: UNI-CONSTRUCT-01
     register: [measurement.metric_validated, measurement.construct_substitution]
     pillar: construct
@@ -108,9 +108,9 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Cronbach and Meehl (1955), Construct Validity in Psychological Tests, Psychological Bulletin 52(4)
-      - Flake, Pek and Hehman (2017), Construct Validation in Social and Personality Research, Social Psychological and Personality Science 8(4)
-      - Flake and Fried (2020), Measurement Schmeasurement, Advances in Methods and Practices in Psychological Science 3(4)
+      - cronbach1955construct
+      - flake2017construct
+      - flake2020measurement
   - id: UNI-EXTERNAL-01
     register: [reasoning.generalization_overreach, inference.sampling_generalizability]
     pillar: external
@@ -122,6 +122,6 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Cronbach (1982), Designing Evaluations of Educational and Social Programs
-      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3
-      - Deaton and Cartwright (2018), Understanding and Misunderstanding Randomized Controlled Trials, Social Science & Medicine 210
+      - cronbach1982designing
+      - "shadish2002experimental: ch. 3"
+      - deaton2018understanding

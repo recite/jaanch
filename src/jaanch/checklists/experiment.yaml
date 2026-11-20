@@ -17,7 +17,7 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, items 8-10
+      - "schulz2010consort: items 8-10"
   - id: EXP-DATA-01
     register: [reporting.attrition_by_arm]
     pillar: internal
@@ -29,8 +29,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, item 13
-      - Gerber and Green (2012), Field Experiments, ch. 7
+      - "schulz2010consort: item 13"
+      - "gerber2012field: ch. 7"
   - id: EXP-REPORT-01
     register: [reporting.baseline_by_arm]
     pillar: internal
@@ -42,8 +42,8 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, item 15
-      - Mutz, Pemantle and Pham (2019), The Perils of Balance Testing in Experimental Design, The American Statistician 73(1)
+      - "schulz2010consort: item 15"
+      - mutz2019perils
   - id: EXP-REPORT-02
     register: [reporting.prereg_primary_outcome]
     pillar: record
@@ -55,8 +55,8 @@ checks:
     if_silent: not_applicable
     severity: high
     sources:
-      - Nosek et al. (2018), The preregistration revolution, PNAS 115(11)
-      - Schulz, Altman and Moher (2010), CONSORT 2010 Statement, BMJ 340, items 6 and 23
+      - nosek2018preregistration
+      - "schulz2010consort: items 6 and 23"
   - id: EXP-INFER-01
     register: [inference.experiment_cluster_assignment_level]
     pillar: statistical
@@ -68,8 +68,8 @@ checks:
     if_silent: flag
     severity: high
     sources:
-      - Gerber and Green (2012), Field Experiments, ch. 3
-      - Abadie, Athey, Imbens and Wooldridge (2023), When Should You Adjust Standard Errors for Clustering?, Quarterly Journal of Economics 138(1)
+      - "gerber2012field: ch. 3"
+      - abadie2023when
   - id: EXP-CONSTRUCT-01
     register: [construct.manipulation_check]
     pillar: construct
@@ -81,7 +81,7 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3
+      - "shadish2002experimental: ch. 3"
   - id: EXP-EXTERNAL-01
     register: [inference.sampling_generalizability, reporting.eligibility_sampling]
     pillar: external
@@ -93,5 +93,5 @@ checks:
     if_silent: flag
     severity: medium
     sources:
-      - Deaton and Cartwright (2018), Understanding and Misunderstanding Randomized Controlled Trials, Social Science & Medicine 210
-      - Shadish, Cook and Campbell (2002), Experimental and Quasi-Experimental Designs for Generalized Causal Inference, ch. 3
+      - deaton2018understanding
+      - "shadish2002experimental: ch. 3"
