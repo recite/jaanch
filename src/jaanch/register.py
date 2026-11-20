@@ -53,6 +53,13 @@ def validate_register(rows: list[dict]) -> list[Problem]:
         for number, row in enumerate(rows, start=1)
         for error in validator.iter_errors(row)
     ]
+    bib = load_bib()
+    problems += [
+        Problem(f"register {row['cid']}", f"source {source} is not in sources.bib")
+        for row in rows
+        for source in row.get("sources", [])
+        if source.split(":")[0] not in bib
+    ]
     seen = Counter(row.get("cid") for row in rows)
     problems += [Problem(f"register {cid}", "cid is not unique") for cid, n in seen.items() if n > 1]
     return problems

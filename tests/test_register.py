@@ -39,6 +39,7 @@ def test_select_and_validate():
     assert [r["cid"] for r in register.select(ROWS, pillar="external")] == ["identification.b"]
     assert [r["cid"] for r in register.select(ROWS, ours=False)] == ["identification.b"]
     assert register.validate_register(ROWS) == []
+    assert register.validate_register([dict(ROWS[0], sources=["nobody2099nothing"])])
     bad = dict(ROWS[0], pillar="vibes")
     assert register.validate_register([bad, ROWS[0]])
 

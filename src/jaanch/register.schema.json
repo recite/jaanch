@@ -3,24 +3,125 @@
   "title": "One canonical check in the register: what it protects (pillar), how it is caught (mechanism), and where it exists today",
   "type": "object",
   "additionalProperties": false,
-  "required": ["cid", "pillar", "mechanism", "name", "definition", "min_inputs", "script_exists", "ours", "external"],
+  "required": [
+    "cid",
+    "pillar",
+    "mechanism",
+    "name",
+    "definition",
+    "min_inputs",
+    "script_exists",
+    "ours",
+    "external"
+  ],
   "properties": {
-    "cid": {"type": "string", "pattern": "^[a-z_]+\\.[a-z0-9_]+$"},
-    "pillar": {"$ref": "#/$defs/pillar"},
-    "second_pillar": {"anyOf": [{"$ref": "#/$defs/pillar"}, {"type": "null"}]},
-    "mechanism": {"enum": ["exact", "cross_reference", "checklist", "retrieval", "rerun", "judgment"]},
-    "design": {"type": ["string", "null"]},
-    "name": {"type": "string", "minLength": 1},
-    "definition": {"type": "string", "minLength": 1},
-    "min_inputs": {"type": "array", "items": {"enum": ["paper_text", "tables", "figures", "bibliography", "code", "data", "registration", "web", "prior_review"]}},
-    "script_exists": {"type": "boolean"},
-    "ours": {"type": "array", "items": {"type": "string"}, "description": "our tools that implement it"},
-    "external": {"type": "array", "items": {"type": "string"}, "description": "outside projects that implement it"},
-    "divergence": {"type": "string"},
-    "validation": {"type": "string"},
-    "reason": {"type": "string", "description": "why this pillar"}
+    "cid": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z0-9_]+$"
+    },
+    "pillar": {
+      "$ref": "#/$defs/pillar"
+    },
+    "second_pillar": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/pillar"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mechanism": {
+      "enum": [
+        "exact",
+        "cross_reference",
+        "checklist",
+        "retrieval",
+        "rerun",
+        "judgment"
+      ]
+    },
+    "design": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "definition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "min_inputs": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "paper_text",
+          "tables",
+          "figures",
+          "bibliography",
+          "code",
+          "data",
+          "registration",
+          "web",
+          "prior_review"
+        ]
+      }
+    },
+    "script_exists": {
+      "type": "boolean"
+    },
+    "ours": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "our tools that implement it"
+    },
+    "external": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "outside projects that implement it"
+    },
+    "divergence": {
+      "type": "string"
+    },
+    "validation": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string",
+      "description": "why this pillar"
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(: .+)?$"
+      },
+      "description": "keys in checks/sources.bib for the works that establish the requirement"
+    }
   },
   "$defs": {
-    "pillar": {"enum": ["record", "construct", "internal", "statistical", "external", "claim_fit", "contribution", "presentation", "process"]}
+    "pillar": {
+      "enum": [
+        "record",
+        "construct",
+        "internal",
+        "statistical",
+        "external",
+        "claim_fit",
+        "contribution",
+        "presentation",
+        "process"
+      ]
+    }
   }
 }
