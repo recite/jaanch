@@ -193,6 +193,8 @@ import pytest  # noqa: E402
         "http://169.254.169.254/latest",
         "http://192.168.1.1/x.pdf",
         "http://localhost/x.pdf",
+        "http://[::1]/x.pdf",
+        "http://[::ffff:127.0.0.1]/x.pdf",
     ],
 )
 def test_non_public_addresses_are_refused_before_connecting(url):
@@ -206,3 +208,49 @@ def test_non_public_addresses_are_refused_before_connecting(url):
 def test_non_http_schemes_are_refused(url):
     with pytest.raises(ValueError, match="only http and https"):
         lit.get_public(url)
+
+
+def _fake_wire(monkeypatch, location=None):
+    """Answer every request without a network, after the real address check.
+
+    Only the bytes on the wire are faked: requests' own redirect handling and
+    requests-hardened's address filter run unchanged.
+
+    Returns:
+        The URLs whose address the filter accepted, in order.
+    """
+    import io
+
+    from requests.models import Response
+    from requests_hardened.ip_filter_adapter import IPFilterAdapter
+
+    accepted = []
+
+    def send(self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None):
+        self.build_connection_pool_key_attributes(request, verify, cert)
+        accepted.append(request.url)
+        response = Response()
+        response.status_code = 302 if location else 200
+        if location:
+            response.headers["Location"] = location
+        response.url, response.request = request.url, request
+        response.raw = io.BytesIO(b"%PDF-1.4")
+        return response
+
+    monkeypatch.setattr(IPFilterAdapter, "send", send)
+    return accepted
+
+
+def test_a_public_address_is_fetched(monkeypatch):
+    accepted = _fake_wire(monkeypatch)
+    assert lit.get_public("http://8.8.8.8/x.pdf").status_code == 200
+    assert accepted == ["http://8.8.8.8/x.pdf"]
+
+
+def test_a_redirect_to_a_private_address_is_refused(monkeypatch):
+    from requests_hardened.ip_filter import InvalidIPAddress
+
+    accepted = _fake_wire(monkeypatch, location="http://127.0.0.1/secret")
+    with pytest.raises(InvalidIPAddress):
+        lit.get_public("http://8.8.8.8/start.pdf")
+    assert accepted == ["http://8.8.8.8/start.pdf"]
