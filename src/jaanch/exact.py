@@ -15,6 +15,9 @@ verbatim quote it came from. Computation then decides consistency:
   cell: here. No maintained package covers regression tables; the math is
   a few lines on scipy, and every bound accounts for rounding, so a cell is
   flagged only when no unrounded values could produce what is printed.
+- design analysis (power, Type S and Type M error of a significant estimate
+  against a benchmark true effect the paper states, or half the main effect
+  for an interaction): R retrodesign (Gelman and Carlin 2014).
 
 Findings go to candidates/exact.jsonl in the comment schema, so the skeptic
 and the editor treat them like any other finding.
@@ -38,13 +41,21 @@ MEANS = "means.jsonl"
 COEFS = "coefs.jsonl"
 SUMS = "sums.jsonl"
 RATES = "rates.jsonl"
+DESIGN = "design.jsonl"
+# A significant estimate is flagged when, against the benchmark effect, the
+# design would exaggerate a significant result at least this many times on
+# average (power is then about 0.3 or less at alpha .05). From 3 it is major.
+EXAGGERATION_FLAG = 2.0
+EXAGGERATION_MAJOR = 3.0
+# Gelman's benchmark for an interaction: half the size of the main effect.
+INTERACTION_SHARE = 0.5
 # One test per reported table of rates, so a conventional level without a
 # multiplicity correction. Large online experiments use far stricter levels for
 # sample ratio mismatch because they test thousands of experiments.
 RATE_ALPHA = 0.01
 RESULTS = "results.jsonl"
 CANDIDATES = Path("candidates") / "exact.jsonl"
-R_PACKAGES = ["statcheck", "scrutiny", "jsonlite"]
+R_PACKAGES = ["statcheck", "scrutiny", "retrodesign", "jsonlite"]
 NUMBER = re.compile(r"^-?\d*\.?\d+$")
 # Rounding bounds are closed intervals: a value exactly at a bound is consistent.
 # Without this, 0.02 - 0.03 = 0.010000000000000002 exceeds a 0.01 allowance.
@@ -307,6 +318,46 @@ def check_rates(row: dict) -> list[str]:
     return []
 
 
+def design_request(row: dict) -> dict:
+    """The true effect A, standard error s and df that a design.jsonl row asks retrodesign about.
+
+    kind "benchmark": the estimate and SE, against a true effect the paper
+    itself states (a power analysis assumption, a cited or meta-analytic
+    estimate). kind "interaction": the interaction's estimate and SE, against
+    half the main effect it modifies.
+    """
+    where = row["id"]
+    estimate, se = _number(row["estimate"], where, "estimate"), _number(row["se"], where, "se")
+    if se <= 0:
+        raise ValueError(f"{where}: se must be positive")
+    if row.get("kind", "benchmark") == "interaction":
+        true = INTERACTION_SHARE * abs(_number(row["main_estimate"], where, "main_estimate"))
+    else:
+        true = abs(_number(row["benchmark"], where, "benchmark"))
+    if true == 0:
+        raise ValueError(f"{where}: the benchmark effect is zero")
+    df = _number(str(row["df"]), where, "df") if row.get("df") else None
+    return {"id": where, "A": true, "s": se, "alpha": 0.05, "df": df, "estimate": estimate}
+
+
+def design_finding(row: dict, request: dict, hit: dict) -> tuple[str, str] | None:
+    """Message and severity when a significant estimate comes from a design that would exaggerate it."""
+    estimate, se, df = request["estimate"], request["s"], request["df"]
+    if abs(estimate / se) < _critical(0.95, df) or hit["type_m"] < EXAGGERATION_FLAG:
+        return None
+    if row.get("kind") == "interaction":
+        against = f"an interaction half the main effect ({request['A']:g})"
+    else:
+        against = f"the {row.get('benchmark_source', 'benchmark')} effect of {row['benchmark']}"
+    message = (
+        f"Against {against}, a design with standard error {row['se']} has power {hit['power']:.2f}. "
+        f"A significant estimate from it overstates the true effect {hit['type_m']:.1f}-fold on average "
+        f"and has the wrong sign with probability {hit['type_s']:.2f}. The reported {row['estimate']} is "
+        f"{abs(estimate) / request['A']:.1f} times that effect."
+    )
+    return message, "major" if hit["type_m"] >= EXAGGERATION_MAJOR else "minor"
+
+
 def _extraction_problems(rows: list[dict], fields: list[str], paper: str, name: str) -> list[Problem]:
     """Every extracted number must sit in its quote, and the quote in the paper."""
     problems = []
@@ -324,9 +375,24 @@ def _extraction_problems(rows: list[dict], fields: list[str], paper: str, name: 
 
 
 DIFFERENCE_TITLES = ("Rates differ by group", "Assignment counts depart from the design")
+DESIGN_TITLE = "Significant estimate from an underpowered design"
 
 
 def _comment(number: int, title: str, row: dict, message: str, severity: str) -> dict:
+    if title == DESIGN_TITLE:
+        return {
+            "id": f"exact_{number:03d}",
+            "goal": "reasoning",
+            "title": title,
+            "quote": row["quote"],
+            "location": row.get("location") or row.get("_line") or "paper.txt",
+            "message": message,
+            "suggestion": "Report a design analysis against a plausible effect, describe the estimate "
+            "as likely inflated, and do not build further claims on its size.",
+            "severity": severity,
+            "kind": "substance/methodology",
+            "fix_effort": "rework",
+        }
     if title in DIFFERENCE_TITLES:
         return {
             "id": f"exact_{number:03d}",
@@ -367,6 +433,7 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
     coefs = read_jsonl(folder / COEFS) if (folder / COEFS).exists() else []
     sums = read_jsonl(folder / SUMS) if (folder / SUMS).exists() else []
     rates = read_jsonl(folder / RATES) if (folder / RATES).exists() else []
+    design = read_jsonl(folder / DESIGN) if (folder / DESIGN).exists() else []
     problems = _extraction_problems(means, ["x", "sd", "n"], paper, MEANS)
     problems += _extraction_problems(coefs, ["coef", "se", "t", "p", "ci_low", "ci_high"], paper, COEFS)
     problems += [
@@ -397,6 +464,17 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
         missing = [v for v in numbers if v not in row["quote"]]
         if missing:
             problems.append(Problem(where, f"{', '.join(missing)} do not appear in its quote"))
+    problems += _extraction_problems(design, ["estimate", "se", "main_estimate"], paper, DESIGN)
+    for row in design:
+        if row.get("kind") != "interaction":
+            where = f"exact/{DESIGN} {row.get('id')}"
+            quote = row.get("benchmark_quote", "")
+            if not row.get("benchmark") or not anchor_quote(quote, paper):
+                problems.append(Problem(where, "needs a benchmark and a benchmark_quote from the paper"))
+            elif row["benchmark"].lstrip("-−") not in quote:
+                problems.append(
+                    Problem(where, f"benchmark {row['benchmark']!r} does not appear in its quote")
+                )
     bad = {p.where.split()[-1] for p in problems}
     results, comments = [], []
 
@@ -443,10 +521,22 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
             )
             comments.append((title, row, "; ".join(found)))
 
+    severities: dict[int, str] = {}
     ok, why = r_status()
     summary = {"r": why, "coef_cells": len([r for r in results if r["check"] == "coef_cell"])}
     if ok:
-        payload = {"statcheck": paragraphs(plain(text)), "grim": [], "grimmer": [], "debit": []}
+        payload = {"statcheck": paragraphs(plain(text)), "grim": [], "grimmer": [], "debit": [], "design": []}
+        design_rows = {}
+        for row in design:
+            if row["id"] in bad:
+                continue
+            try:
+                request = design_request(row)
+            except (ValueError, KeyError) as error:
+                problems.append(Problem(f"exact/{DESIGN} {row['id']}", str(error)))
+                continue
+            design_rows[row["id"]] = (row, request)
+            payload["design"].append({k: v for k, v in request.items() if k != "estimate" and v is not None})
         by_id = {}
         for row in means:
             if row["id"] in bad or row.get("data", "integer") == "continuous":
@@ -505,6 +595,14 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
                     }[check]
                     message = f"{check.upper()}: {what}, at the reported decimals. Computed by scrutiny."
                     comments.append((f"{check.upper()} inconsistency", row, message))
+        for hit in out.get("design") or []:
+            row, request = design_rows[hit["id"]]
+            found = design_finding(row, request, hit) if "type_m" in hit else None
+            results.append({"check": "design", "id": hit["id"], "consistent": found is None, "detail": hit})
+            if found:
+                comments.append((DESIGN_TITLE, row, found[0]))
+                severities[len(comments)] = found[1]
+        summary["design"] = len(out.get("design") or [])
         summary["statcheck"] = len(out.get("statcheck") or [])
         summary["means"] = sum(len(out.get(c) or []) for c in ("grim", "grimmer", "debit"))
 
@@ -514,7 +612,13 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
         line = locate_line(row["quote"], text)
         row["_line"] = f"line {line}" if line else ""
     rendered = [
-        _comment(i, title, row, message, "major" if any(s in title for s in serious) else "minor")
+        _comment(
+            i,
+            title,
+            row,
+            message,
+            severities.get(i) or ("major" if any(s in title for s in serious) else "minor"),
+        )
         for i, (title, row, message) in enumerate(comments, start=1)
     ]
     (run_dir / CANDIDATES).parent.mkdir(exist_ok=True)

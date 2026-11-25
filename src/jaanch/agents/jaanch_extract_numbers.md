@@ -78,6 +78,27 @@ gives the designed shares:
 Copy only counts the paper prints, never ones you work out from percentages,
 and only groups the design treats alike.
 
+**`<run>/exact/design.jsonl`**: estimates that can be checked for an
+underpowered design. Two kinds:
+
+```json
+{"id": "s4_main", "quote": "raised giving by 0.50 (SE = 0.20)", "location": "Table 2",
+ "estimate": "0.50", "se": "0.20", "df": null,
+ "benchmark": "0.10", "benchmark_quote": "Our power analysis assumed an effect of 0.10",
+ "benchmark_source": "power analysis"}
+{"id": "t3_int", "kind": "interaction", "quote": "interaction 0.50 (0.20) ... main effect 0.40",
+ "location": "Table 3", "estimate": "0.50", "se": "0.20", "main_estimate": "0.40"}
+```
+
+- A `benchmark` row needs a true effect the paper itself states, on the
+  same scale as the estimate: the effect its power analysis assumed, a
+  pilot, or an estimate it cites from earlier work or a meta-analysis.
+  `benchmark_source` says which. Never supply a benchmark of your own.
+- An `interaction` row takes a significant interaction and the main effect
+  it modifies, from the same table. The check compares the interaction with
+  an effect half the main effect's size.
+- Copy only main-claim estimates and the interactions the paper interprets.
+
 Write empty files if there is nothing to copy. Run `jaanch exact <run>`. It
 refuses any line whose quote is not in the paper or whose numbers are not in
 its quote; fix those and run it again until it reports 0 problems. Reply

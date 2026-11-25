@@ -6,12 +6,14 @@ suppressMessages({
   library(jsonlite)
   library(statcheck)
   library(scrutiny)
+  library(retrodesign)
 })
 args <- commandArgs(trailingOnly = TRUE)
 input <- fromJSON(args[1], simplifyVector = FALSE)
 out <- list(versions = list(
   statcheck = as.character(packageVersion("statcheck")),
-  scrutiny = as.character(packageVersion("scrutiny"))
+  scrutiny = as.character(packageVersion("scrutiny")),
+  retrodesign = as.character(packageVersion("retrodesign"))
 ))
 
 texts <- input$statcheck
@@ -42,4 +44,12 @@ out$grimmer <- one(input$grimmer, function(r) {
 out$debit <- one(input$debit, function(r) list(consistency = debit(
   r$x, sd = r$sd, n = r$n, digits_x = r$digits_x, digits_sd = r$digits_sd, data_type = "integer"
 )))
+# Power, Type S and Type M (exaggeration) of a design against a true effect
+# A, given the estimate's standard error (Gelman and Carlin 2014; the closed
+# form of Lu, Qiu and Deng 2019 when df is absent).
+out$design <- one(input$design, function(r) {
+  res <- if (is.null(r$df)) retro_design_closed_form(A = r$A, s = r$s, alpha = r$alpha)
+         else retrodesign(A = r$A, s = r$s, alpha = r$alpha, df = r$df)
+  list(power = res$power, type_s = res$type_s, type_m = res$type_m)
+})
 write_json(out, args[2], auto_unbox = TRUE, digits = NA, na = "null")

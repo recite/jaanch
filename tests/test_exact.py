@@ -104,7 +104,9 @@ def test_table_cells_are_checked_without_r(tmp_path, monkeypatch):
     assert comment["location"] == "line 5"
 
 
-needs_r = pytest.mark.skipif(not exact.r_status()[0], reason="needs R with statcheck and scrutiny")
+needs_r = pytest.mark.skipif(
+    not exact.r_status()[0], reason="needs R with statcheck, scrutiny and retrodesign"
+)
 
 
 @needs_r
@@ -204,3 +206,88 @@ def test_impossible_counts_are_refused():
         check_rates(
             dict(RATE_ROW, groups=[{"name": "t", "k": "6", "n": "5"}, {"name": "c", "k": "1", "n": "5"}])
         )
+
+
+@needs_r
+def test_design_analysis_reproduces_gelman_and_carlin():
+    # Their beauty-and-sex-ratio example: power 0.05, Type S 0.46, exaggeration 77.
+    (hit,) = exact.run_r(
+        {
+            "statcheck": [],
+            "grim": [],
+            "grimmer": [],
+            "debit": [],
+            "design": [{"id": "gc", "A": 0.1, "s": 3.3, "alpha": 0.05}],
+        }
+    )["design"]
+    assert round(hit["power"], 2) == 0.05 and round(hit["type_s"], 2) == 0.46 and round(hit["type_m"]) == 77
+
+
+DESIGN_PAPER = """# Nudges
+The reminder raised giving by 0.50 (SE = 0.20).
+Our power analysis assumed an effect of 0.10.
+The interaction with prior giving was 0.50 (SE = 0.20), and the main effect 0.40.
+A large trial found 0.45 (SE = 0.05), against a benchmark of 0.40 from the pilot.
+"""
+
+
+@needs_r
+def test_underpowered_significant_estimates_are_flagged_and_powered_ones_are_not(tmp_path):
+    (tmp_path / "paper.txt").write_text(DESIGN_PAPER)
+    (tmp_path / "exact").mkdir()
+    rows = [
+        {
+            "id": "main",
+            "quote": "raised giving by 0.50 (SE = 0.20)",
+            "estimate": "0.50",
+            "se": "0.20",
+            "benchmark": "0.10",
+            "benchmark_quote": "assumed an effect of 0.10",
+            "benchmark_source": "power analysis",
+        },
+        {
+            "id": "inter",
+            "kind": "interaction",
+            "quote": "The interaction with prior giving was 0.50 (SE = 0.20), and the main effect 0.40",
+            "estimate": "0.50",
+            "se": "0.20",
+            "main_estimate": "0.40",
+        },
+        {
+            "id": "big",
+            "quote": "found 0.45 (SE = 0.05)",
+            "estimate": "0.45",
+            "se": "0.05",
+            "benchmark": "0.40",
+            "benchmark_quote": "a benchmark of 0.40 from the pilot",
+            "benchmark_source": "pilot",
+        },
+    ]
+    (tmp_path / "exact" / "design.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
+    summary, problems = exact.run_exact(tmp_path)
+    assert problems == [] and summary["design"] == 3
+    comments = {
+        c["quote"]: c
+        for c in map(json.loads, (tmp_path / "candidates" / "exact.jsonl").read_text().splitlines())
+    }
+    main = comments[rows[0]["quote"]]
+    assert main["severity"] == "major" and "4.8-fold" in main["message"] and "5.0 times" in main["message"]
+    assert comments[rows[1]["quote"]]["severity"] == "minor"
+    assert rows[2]["quote"] not in comments
+
+
+def test_design_benchmark_must_come_from_the_paper(tmp_path, monkeypatch):
+    monkeypatch.setattr(exact, "r_status", lambda: (False, "test"))
+    (tmp_path / "paper.txt").write_text(DESIGN_PAPER)
+    (tmp_path / "exact").mkdir()
+    row = {
+        "id": "main",
+        "quote": "raised giving by 0.50 (SE = 0.20)",
+        "estimate": "0.50",
+        "se": "0.20",
+        "benchmark": "0.10",
+        "benchmark_quote": "a plausible effect is 0.10",
+    }
+    (tmp_path / "exact" / "design.jsonl").write_text(json.dumps(row) + "\n")
+    _, problems = exact.run_exact(tmp_path)
+    assert [p.message for p in problems] == ["needs a benchmark and a benchmark_quote from the paper"]
