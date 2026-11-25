@@ -52,6 +52,35 @@ MODEL = {
         }
     ],
     "data_sources": [{"name": "voter file", "kind": "administrative", "quote": "6,000 voters", "n": "6,000"}],
+    "measures": [
+        {
+            "id": "m1",
+            "construct": "turnout",
+            "role": "outcome",
+            "operationalization": "voted in the municipal election, from the voter file",
+            "form": "single_item",
+            "source": "administrative",
+            "items": "vote history flag",
+            "validity_evidence": "not stated",
+            "reliability": "not stated",
+            "data_source": "voter file",
+            "claims": ["c1"],
+            "quote": "Reminders increased turnout",
+        },
+        {
+            "id": "m2",
+            "construct": "text reminder",
+            "role": "treatment",
+            "operationalization": "one text message before the election",
+            "form": "manipulation",
+            "source": "researcher_assigned",
+            "items": "not stated",
+            "validity_evidence": "not stated",
+            "reliability": "not stated",
+            "claims": ["c1"],
+            "quote": "a text reminder or no message",
+        },
+    ],
     "numbers": [{"value": "4.1", "quote": "4.1 percentage points", "location": "line 3"}],
     "tables": [{"id": "Table 1", "caption": "Effect of reminders on turnout", "line": 4}],
     "figures": [],
@@ -73,7 +102,9 @@ def test_valid_model_passes_and_is_summarized(tmp_path):
     summary, problems = check_map(run(tmp_path, MODEL))
     assert problems == []
     assert summary == [
-        "1 claims (causal); designs: experiment/main; 1 data sources; 1 numbers; 1 tables; 0 figures"
+        "1 claims (causal); designs: experiment/main; 1 data sources; 2 measures; "
+        "1 numbers; 1 tables; 0 figures",
+        "paper does not state the items for m2 (text reminder)",
     ]
 
 
@@ -97,6 +128,14 @@ def edit(change):
         (lambda m: m["designs"][0].update(design="regression"), "does not match"),
         (lambda m: m["claims"][0].update(type="mechanism"), "is not one of"),
         (lambda m: m["claims"][0]["estimand"].pop("outcome"), "'outcome' is a required property"),
+        (lambda m: m["measures"].pop(0), "its outcome has no measure with role outcome"),
+        (
+            lambda m: m["measures"].pop(1),
+            "its treatment_or_exposure has no measure with role treatment or exposure",
+        ),
+        (lambda m: m["measures"][0].update(claims=["c9"]), "claim c9 does not exist"),
+        (lambda m: m["measures"][0].update(data_source="census"), "'census' is not in data_sources"),
+        (lambda m: m["measures"][0].update(source="vibes"), "is not one of"),
     ],
 )
 def test_map_problems_are_reported(tmp_path, change, expected):
@@ -150,3 +189,12 @@ def test_start_on_a_file_inventories_only_that_file(tmp_path):
     run_dir = start_run(project / "paper.md", tmp_path / "reviews")
     inv = json.loads((run_dir / "inventory.json").read_text())
     assert inv["available"] == ["paper_text"]
+
+
+def test_scale_without_validity_or_reliability_is_a_finding(tmp_path):
+    def change(model):
+        model["measures"][0].update(form="multi_item_scale", items="not stated")
+
+    summary, problems = check_map(run(tmp_path, edit(change)))
+    assert problems == []
+    assert "paper does not state the items, validity evidence, reliability for m1 (turnout)" in summary

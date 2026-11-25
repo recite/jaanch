@@ -124,3 +124,28 @@ def test_checklists_command_with_a_run_lists_only_routed_checklists(tmp_path, ca
 def test_schema_command_prints_the_paper_model_schema(capsys):
     assert main(["schema", "paper-model"]) == 0
     assert "estimand" in capsys.readouterr().out
+
+
+def test_data_features_route_the_data_modules():
+    from jaanch.checklists import routed_modules
+
+    model = {
+        "designs": [{"design": "experiment"}],
+        "data_sources": [{"name": "voter file", "features": ["linked"]}],
+        "measures": [{"source": "model_predicted", "form": "category"}],
+    }
+    routed = routed_modules(model)
+    assert {"universal", "experiment", "linked_data", "predicted_data"} <= set(routed)
+    assert "survey_data" not in routed and "measurement" not in routed
+    plain = {"designs": [{"design": "experiment"}], "data_sources": [], "measures": []}
+    assert not {"linked_data", "predicted_data"} & set(routed_modules(plain))
+
+
+def test_a_module_that_routes_nothing_is_invalid():
+    import copy
+
+    from jaanch.checklists import load_checklists, validate_checklists
+
+    modules = copy.deepcopy(load_checklists())
+    modules["linked_data"]["data"] = []
+    assert any("routes no paper" in p.message for p in validate_checklists(modules))

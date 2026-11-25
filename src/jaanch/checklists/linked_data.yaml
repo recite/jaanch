@@ -1,0 +1,98 @@
+module: linked_data
+title: Data linked across files
+prefix: LNK
+designs: []
+data: [linked, linked_record]
+applies_when: >-
+  An analysis variable or the analysis sample comes from joining records of
+  two or more files that share no exact common identifier (names, addresses,
+  dates of birth, probabilistic or machine-learned matching).
+checks:
+  - id: LNK-DATA-01
+    register: [data_integrity.linkage_reported]
+    pillar: record
+    category: reporting
+    requirement: Report how the files were linked, which identifiers, blocking, comparison and threshold rules were used, and the match rate at each step.
+    applies_to: Every linked analysis.
+    pass_if: The paper gives the method, identifiers, decision rule and the number of records linked out of each file.
+    flag_if: Linkage is described as "matched" or "merged" with no method or rates.
+    if_silent: flag
+    severity: medium
+    consequence: Without the method and rates, no reader can bound the linkage error that every downstream estimate inherits.
+    sources:
+      - gilbert2017guild
+      - benchimol2015reporting
+  - id: LNK-DATA-02
+    register: [data_integrity.linkage_error_rates]
+    pillar: record
+    category: data
+    requirement: Estimate the false-match and missed-match rates, not only the share of records matched.
+    applies_to: Every linked analysis.
+    pass_if: The paper reports precision and recall (or false-match and missed-match rates) from a clerical review, a gold-standard subset, or a held-out identifier.
+    flag_if: Only the match rate is given, or quality is asserted.
+    if_silent: flag
+    severity: high
+    consequence: A high match rate can hide many false matches. False matches pair units with someone else's outcome, which pulls estimates toward zero or toward whatever the wrongly matched records share.
+    tools: [preclink]
+    sources:
+      - bailey2020well
+      - doidge2019reflections
+  - id: LNK-INTERNAL-01
+    register: [identification.differential_linkage]
+    pillar: internal
+    category: identification
+    requirement: Compare match rates, and where possible linkage quality, across treatment arms or the groups the claims compare.
+    applies_to: Linked analyses that compare arms, groups or periods.
+    pass_if: Match rates by arm or group are reported and similar, or their difference is tested and handled (bounds, reweighting).
+    flag_if: Rates by arm or group are not reported, or they differ and the analysis ignores it.
+    if_silent: flag
+    severity: high
+    consequence: Missed matches that differ by arm act as differential attrition and bias the contrast; false matches that differ by arm act as differential measurement error. Neither averages out.
+    tools: [jaanch exact]
+    sources:
+      - doidge2019reflections
+      - abramitzky2021automated
+  - id: LNK-STAT-01
+    register: [inference.linkage_uncertainty]
+    pillar: statistical
+    category: inference
+    requirement: Carry linkage uncertainty into the reported uncertainty, or show the conclusion survives the plausible amount of linkage error.
+    applies_to: Linked analyses whose conclusion is a test or an interval.
+    pass_if: The paper uses a linkage-error correction for regression, multiple imputation over candidate links, or a sensitivity analysis showing how many identity errors would overturn the result.
+    flag_if: Inference treats the chosen links as true.
+    if_silent: flag
+    severity: medium
+    consequence: Standard errors and p-values are valid only if every link is right. In a randomized experiment the randomization test itself depends on which records are joined, so the p-value can move across the links the data allow.
+    tools: [causal_linkage]
+    sources:
+      - lahiri2005regression
+      - bailey2020well
+  - id: LNK-EXTERNAL-01
+    register: [measurement.population_from_selected_sample]
+    pillar: external
+    category: data
+    requirement: Show who is lost to linkage, and keep claims to the population the linked sample represents.
+    applies_to: Linked analyses with a match rate below one.
+    pass_if: The paper compares linked and unlinked records on observables and states the population the linked sample represents, or reweights to the source population.
+    flag_if: The linked subset is treated as the full population, though linkability depends on names, mobility, or record quality.
+    if_silent: flag
+    severity: medium
+    consequence: Linkable records over-represent people with stable, common-format identifiers, so estimates describe them, not the population the claim names.
+    sources:
+      - abramitzky2021automated
+      - bailey2020well
+  - id: LNK-ROBUST-01
+    register: [robustness.linkage_threshold]
+    pillar: statistical
+    category: robustness
+    requirement: Show the main estimate across stricter and looser linkage rules.
+    applies_to: Linked analyses that choose a match threshold or method.
+    pass_if: Results are shown for at least one stricter and one looser rule, or for a second linkage method.
+    flag_if: One threshold is used with no sensitivity analysis.
+    if_silent: flag
+    severity: low
+    consequence: Stricter rules trade false matches for missed matches. An estimate that moves across them depends on linkage error, not only on the data.
+    tools: [preclink]
+    sources:
+      - abramitzky2021automated
+      - bailey2020well

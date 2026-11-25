@@ -76,10 +76,10 @@ def _instructions(args: argparse.Namespace) -> int:
 def _checklists(args: argparse.Namespace) -> int:
     checklists = load_checklists()
     if args.run_dir:
-        designs = {
-            d["design"] for d in json.loads((args.run_dir / "map.json").read_text()).get("designs", [])
-        }
-        checklists = {name: c for name, c in checklists.items() if designs & set(c["designs"])}
+        from jaanch.checklists import routed_modules
+
+        routed = routed_modules(json.loads((args.run_dir / "map.json").read_text()), checklists)
+        checklists = {name: checklists[name] for name in routed}
     for name, checklist in checklists.items():
         print(f"{name} ({len(checklist['checks'])} checks): {checklist['applies_when']}")
     return 0
@@ -223,6 +223,18 @@ def _checks(args: argparse.Namespace) -> int:
     return 0
 
 
+def _sources(args: argparse.Namespace) -> int:
+    from jaanch import sources
+
+    try:
+        key = sources.add(args.doi, args.title)
+    except (LookupError, ValueError) as error:
+        print(error, file=sys.stderr)
+        return 1
+    print(key)
+    return 0
+
+
 def _render(args: argparse.Namespace) -> int:
     sys.stdout.write(render_review(json.loads(args.review.read_text())))
     return 0
@@ -322,6 +334,14 @@ def build_parser() -> argparse.ArgumentParser:
     checks_cmd.add_argument("--design")
     checks_cmd.add_argument("--ours", action="store_true", help="only checks our tools implement")
     checks_cmd.set_defaults(handler=_checks)
+
+    sources_cmd = commands.add_parser(
+        "sources", help="add a work to checks/sources.bib from its Crossref record"
+    )
+    sources_cmd.add_argument("action", choices=["add"])
+    sources_cmd.add_argument("doi")
+    sources_cmd.add_argument("title", help="the title you expect; a DOI that resolves elsewhere is refused")
+    sources_cmd.set_defaults(handler=_sources)
 
     controls_cmd = commands.add_parser(
         "controls", help="mix known-wrong comments into a skeptic batch, and score them"

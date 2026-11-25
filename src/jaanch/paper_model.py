@@ -27,7 +27,7 @@ def _validator() -> Draft202012Validator:
 
 def _quotes(model: dict) -> list[tuple[str, str]]:
     found = []
-    for key in ("claims", "designs", "data_sources", "numbers"):
+    for key in ("claims", "designs", "data_sources", "measures", "numbers"):
         for index, item in enumerate(model.get(key, [])):
             if item.get("quote"):
                 found.append((f"{key}[{index}]", item["quote"]))
@@ -94,10 +94,13 @@ def check_map(run_dir: Path) -> tuple[list[str], list[Problem]]:
             if claim_id not in claim_ids:
                 problems.append(Problem(f"designs {design['design']}", f"claim {claim_id} does not exist"))
 
+    problems += _measure_problems(model, claim_ids)
+
     summary = [
         f"{len(model['claims'])} claims ({', '.join(c['type'] for c in model['claims'])}); "
         f"designs: {', '.join(d['design'] + '/' + d['role'] for d in model['designs']) or 'none'}; "
-        f"{len(model['data_sources'])} data sources; {len(model['numbers'])} numbers; "
+        f"{len(model['data_sources'])} data sources; {len(model['measures'])} measures; "
+        f"{len(model['numbers'])} numbers; "
         f"{len(model['tables'])} tables; {len(model['figures'])} figures"
     ]
     # An estimand element the paper never states is not an error in the map.
@@ -113,4 +116,62 @@ def check_map(run_dir: Path) -> tuple[list[str], list[Problem]]:
         ]
         if claim["type"] == "causal" and not causal_designs:
             summary.append(f"{claim['id']} is causal but no identification design is linked to it")
+    summary += _measure_findings(model)
     return summary, problems
+
+
+# The roles a claim's estimand must trace to a measure for: its outcome always,
+# and its treatment or exposure when the claim is causal.
+NEEDED_ROLES = {"outcome": ("outcome",), "treatment_or_exposure": ("treatment", "exposure")}
+SCORED_FORMS = {"multi_item_scale", "index"}
+
+
+def _measure_problems(model: dict, claim_ids: list[str]) -> list[Problem]:
+    """The map is incomplete when a construct a claim names has no measure."""
+    problems = []
+    measures = model["measures"]
+    ids = [m["id"] for m in measures]
+    if len(set(ids)) != len(ids):
+        problems.append(Problem("measures", "measure ids are not unique"))
+    sources = {d["name"] for d in model["data_sources"]}
+    for measure in measures:
+        where = f"measures {measure['id']}"
+        problems += [
+            Problem(where, f"claim {c} does not exist") for c in measure["claims"] if c not in claim_ids
+        ]
+        if measure.get("data_source") and measure["data_source"] not in sources:
+            problems.append(Problem(where, f"data source {measure['data_source']!r} is not in data_sources"))
+    for claim in model["claims"]:
+        roles = {m["role"] for m in measures if claim["id"] in m["claims"]}
+        for element, wanted in NEEDED_ROLES.items():
+            if element == "treatment_or_exposure" and claim["type"] != "causal":
+                continue
+            stated = claim["estimand"].get(element, NOT_STATED).strip().lower() != NOT_STATED
+            if stated and not roles & set(wanted):
+                problems.append(
+                    Problem(
+                        f"claims {claim['id']}",
+                        f"its {element} has no measure with role {' or '.join(wanted)}",
+                    )
+                )
+    return problems
+
+
+def _measure_findings(model: dict) -> list[str]:
+    """What the paper leaves unsaid about its measures: findings about the paper, not errors in the map."""
+    findings = []
+    for measure in model["measures"]:
+        unsaid = [
+            field
+            for field in ("items", "validity_evidence", "reliability")
+            if measure[field].strip().lower() == NOT_STATED
+            and (
+                field == "items" or measure["form"] in SCORED_FORMS or measure["source"] == "model_predicted"
+            )
+        ]
+        if unsaid:
+            findings.append(
+                f"paper does not state the {', '.join(unsaid).replace('_', ' ')} for {measure['id']} "
+                f"({measure['construct']})"
+            )
+    return findings

@@ -63,11 +63,24 @@ Input is `.tex`, `.md` or plain text for now; PDF ingest is not built yet.
 ### Design checklists
 
 `jaanch checklists` lists the design checklists in `src/jaanch/checklists/`,
-and `jaanch checklist <module>` prints one. The mapper routes each paper to
-the checklists for its designs (`designs` in `map.json`). The completeness
+and `jaanch checklist <module>` prints one. A paper is routed to the
+checklists for its designs (`designs` in `map.json`) and for how its data
+were made: `linked_data`, `predicted_data` and `survey_data` follow the
+`features` of its data sources, and `measurement` follows the form and
+source of its `measures` (scales, indices, self-reports, human coding). Each
+data item states the defect, its consequence for the estimate, and the tool
+that tests it when code and data are present. The completeness
 finder gives every check a verdict in `checklists.jsonl` and rates each flag
 `major`, `minor` or `negligible` for this paper. `jaanch coverage <run>`
 fails if a check has no verdict or a `major` or `minor` flag has no comment.
+
+### Sources
+
+Every checklist item and register check cites the works it rests on by key
+in `src/jaanch/checks/sources.bib`; validation rejects a key that is not
+there. Add a work from its Crossref record with
+`jaanch sources add <doi> "<expected title>"`, which refuses a DOI whose
+record has a different title.
 
 ## Develop
 

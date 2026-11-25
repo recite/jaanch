@@ -1,0 +1,105 @@
+module: survey_data
+title: Survey samples and interviewers
+prefix: SVY
+designs: [survey]
+data: [survey_weights, interviewer_administered]
+applies_when: >-
+  The data come from a probability or weighted sample (strata, clusters,
+  design or post-stratification weights), or were collected by interviewers.
+checks:
+  - id: SVY-STAT-01
+    register: [inference.survey_inclusion_probabilities]
+    pillar: statistical
+    category: inference
+    requirement: Compute standard errors from the sampling design, with its strata, primary sampling units and weights (or the replicate weights released for it), not as if the sample were simple random.
+    applies_to: Analyses of data from a stratified, clustered or weighted sample.
+    pass_if: The paper names the design variables or replicate weights used, or the software design declaration.
+    flag_if: Standard errors are computed as if from a simple random sample, or the design is not mentioned.
+    if_silent: flag
+    severity: medium
+    consequence: Ignoring clustering usually understates standard errors, often by a factor of the design effect's square root; ignoring strata usually overstates them.
+    tools: [studyframe]
+    sources:
+      - lumley2010complex
+  - id: SVY-STAT-02
+    register: [reporting.weighted_unweighted_labeled]
+    pillar: statistical
+    category: estimation
+    requirement: Say whether each estimate is weighted, and justify the choice for the estimand.
+    applies_to: Analyses of weighted survey data.
+    pass_if: Population descriptions are weighted. For regressions, the paper says why it weights or not (heterogeneous effects, endogenous sampling, heteroskedasticity) and labels the results.
+    flag_if: Weighted and unweighted results are mixed without labels, or a regression is weighted or unweighted without a reason.
+    if_silent: flag
+    severity: low
+    consequence: An unweighted mean describes the sample, not the population. With heterogeneous effects, weighted and unweighted regressions estimate different averages, so the choice is part of the estimand.
+    sources:
+      - solon2015are
+  - id: SVY-DATA-01
+    register: [data_integrity.weight_wave_match]
+    pillar: record
+    category: data
+    requirement: Use the weight released for the wave, panel or subsample analyzed.
+    applies_to: Panel surveys and surveys that release several weights.
+    pass_if: The paper names the weight and it is the one for the analyzed wave or subsample (longitudinal weight for change, subsample weight for a module).
+    flag_if: A cross-sectional or full-sample weight is used for a panel or a subsample.
+    if_silent: pass
+    severity: medium
+    consequence: The wrong weight targets a different population, so estimates and their standard errors are for that population, not the stated one.
+    tools: [studyframe]
+    sources:
+      - lumley2010complex
+  - id: SVY-STAT-03
+    register: [inference.domain_estimation]
+    pillar: statistical
+    category: inference
+    requirement: Estimate subgroups as domains of the full design, not by deleting other respondents before declaring the design.
+    applies_to: Survey estimates for subpopulations.
+    pass_if: Subgroup estimates use domain estimation (subset after declaring the design).
+    flag_if: The data are subset first and the design declared on the remainder.
+    if_silent: pass
+    severity: low
+    consequence: Subsetting first drops primary sampling units and strata from the variance calculation, so subgroup standard errors are wrong, usually too small.
+    tools: [studyframe]
+    sources:
+      - lumley2010complex
+  - id: SVY-DATA-02
+    register: [reporting.response_rate]
+    pillar: external
+    category: reporting
+    requirement: Report the response rate and how nonresponse was adjusted for.
+    applies_to: Survey data the paper collected or whose claims depend on population representation.
+    pass_if: The paper reports a response rate under a standard definition and the adjustments (weighting targets, raking variables).
+    flag_if: No response rate, or adjustments are not described.
+    if_silent: flag
+    severity: low
+    consequence: Nonresponse correlated with the outcome biases population estimates in ways weights adjust for only as far as the weighting variables predict response.
+    sources:
+      - groves2010total
+  - id: SVY-STAT-04
+    register: [inference.interviewer_clustering]
+    pillar: statistical
+    category: inference
+    requirement: When interviewers collected the data, allow for interviewer effects in standard errors and check that effects do not depend on a few interviewers.
+    applies_to: Interviewer-administered surveys and survey experiments.
+    pass_if: Standard errors are clustered on interviewer (or interviewer intra-class correlations are reported and small), and estimates survive dropping interviewers one at a time.
+    flag_if: Interviewer effects are not mentioned in interviewer-administered data.
+    if_silent: flag
+    severity: medium
+    consequence: Responses correlated within interviewers make independent-observation standard errors too small; treatment effects that vary by interviewer more than noise allows point to implementation failures.
+    tools: [interviewer-checks]
+    sources:
+      - west2016explaining
+  - id: SVY-DATA-03
+    register: [data_integrity.interviewer_fabrication]
+    pillar: record
+    category: data
+    requirement: Check interviewer-collected data for fabricated or duplicated interviews.
+    applies_to: Interviewer-administered surveys.
+    pass_if: The paper reports back-checks, near-duplicate screening (share of answers matching another interview) or similar quality control, and what was dropped.
+    flag_if: No quality control of interviewers is described.
+    if_silent: flag
+    severity: medium
+    consequence: Fabricated or copied interviews add records that carry no information about respondents, and if concentrated in some interviewers or arms they bias estimates.
+    tools: [interviewer-checks]
+    sources:
+      - kuriakose2016don

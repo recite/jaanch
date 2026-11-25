@@ -47,7 +47,28 @@ full. Write `<run>/map.json` to the schema printed by
 - **`data_sources`**: each dataset, with its `kind`, provenance (who
   collected it, when, and how the paper got it), unit, N and period as the
   paper states them. If `inventory.json` lists data files, name the ones
-  that hold this source in `files`.
+  that hold this source in `files`. In `features`, mark how the data were
+  made when the paper says so: `linked` (records joined across files
+  without an exact shared identifier), `model_predicted` (a variable is a
+  classifier's, model's or estimation step's output), `survey_weights` (a
+  weighted, stratified or clustered sample), `interviewer_administered`.
+  These route the paper to the data checklists, so mark every one that
+  applies and none that does not.
+- **`measures`**: one entry for each construct a claim names, as outcome,
+  treatment, exposure, mediator, moderator or key covariate. Every claim's
+  outcome needs one, and so does a causal claim's treatment or exposure.
+  `construct` is the concept in the claim's words ("political knowledge");
+  `operationalization` is what was actually recorded or manipulated
+  ("number correct of five factual questions"). Keep the two apart even
+  when the paper runs them together: the gap between them is what the
+  construct checks judge. Give its `form` (`single_item`,
+  `multi_item_scale`, `index`, `count_or_rate`, `category`,
+  `manipulation`) and `source` (`self_report`, `observed_behavior`,
+  `administrative`, `human_coded`, `model_predicted`, `linked_record`,
+  `researcher_assigned`, `other`). For `items`, `validity_evidence` and
+  `reliability`, copy what the paper gives, or write exactly `not stated`.
+  Name its `data_source`, list the claim ids that use it, and quote where
+  the paper defines it.
 - **`sample_flow`**: each step from the starting population to the analytic
   sample, with its N, when the paper reports it.
 - **`sections`**: units of review work, not just headings. Aim for 3–12

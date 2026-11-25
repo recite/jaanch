@@ -62,6 +62,22 @@ make up a total, or percentages of one variable that should sum to 100:
 Include a category only when the paper presents the parts as exhaustive;
 leave out sets with an "other" or missing category the paper does not give.
 
+**`<run>/exact/rates.jsonl`**: one line per set of counts by group that the
+design says should not differ, such as records matched, located, retained or
+responding by treatment arm, or units assigned to each arm when the paper
+gives the designed shares:
+
+```json
+{"id": "t2_match", "quote": "matched 4,112 of 5,000 treated and 3,870 of 5,000 control", "location": "Table 2",
+ "what": "match rate", "groups": [{"name": "treated", "k": "4,112", "n": "5,000"},
+ {"name": "control", "k": "3,870", "n": "5,000"}]}
+{"id": "s2_assign", "quote": "1,083 treated and 917 control, assigned with equal probability", "location": "Design",
+ "groups": [{"name": "treated", "n": "1,083", "share": 0.5}, {"name": "control", "n": "917", "share": 0.5}]}
+```
+
+Copy only counts the paper prints, never ones you work out from percentages,
+and only groups the design treats alike.
+
 Write empty files if there is nothing to copy. Run `jaanch exact <run>`. It
 refuses any line whose quote is not in the paper or whose numbers are not in
 its quote; fix those and run it again until it reports 0 problems. Reply

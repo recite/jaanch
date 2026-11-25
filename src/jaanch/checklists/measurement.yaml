@@ -1,0 +1,107 @@
+module: measurement
+title: Measured constructs
+prefix: MEA
+designs: []
+data: [multi_item_scale, index, self_report, human_coded]
+applies_when: >-
+  A claim rests on a construct the paper measures with a scale, an index, a
+  self-report or human coding, so the gap between what is named and what is
+  recorded can decide the claim. map.json measures lists each one.
+checks:
+  - id: MEA-CONSTRUCT-01
+    register: [measurement.construct_substitution]
+    pillar: construct
+    category: data
+    requirement: For each measure in map.json, the items or coding must capture the construct in the sense the claims use it, or the claims must be worded at the level of what was recorded.
+    applies_to: Every measure a claim depends on.
+    pass_if: The items as printed cover the construct as the claims use it, neither a narrower slice (three factual questions read as "political knowledge") nor a neighbor (trust in the local council read as "trust in government").
+    flag_if: The claim names a broader, different or adjacent construct than the items record.
+    if_silent: flag
+    severity: high
+    consequence: The estimate is about the operationalization. To the extent it differs from the named construct, the claim is unsupported however precise the estimate.
+    sources:
+      - cronbach1955construct
+      - adcock2001measurement
+  - id: MEA-CONSTRUCT-02
+    register: [measurement.metric_validated, measurement.validity_types_separated]
+    pillar: construct
+    category: data
+    requirement: Offer evidence beyond face validity that the measure captures the construct in this population, and keep reliability, content, convergent, discriminant and criterion evidence distinct.
+    applies_to: Measures that are scales, indices, human codings or new instruments.
+    pass_if: The paper reports convergent and discriminant correlations, a criterion it predicts, or a validation of the same instrument in a comparable population, and names which kind of evidence it is.
+    flag_if: Validity rests on the measure's name, on citing its use elsewhere with no validation, or on reliability alone.
+    if_silent: flag
+    severity: medium
+    consequence: An unvalidated measure may track a different construct; effects on it need not be effects on the named construct.
+    sources:
+      - campbell1959convergent
+      - messick1995validity
+      - flake2017construct
+  - id: MEA-CONSTRUCT-03
+    register: [measurement.dimensionality, measurement.reflective_vs_formative]
+    pillar: construct
+    category: data
+    requirement: Check a multi-item scale's structure before summing or averaging its items, and treat an index of causes (formative) differently from a scale of indicators (reflective).
+    applies_to: Multi-item scales and indices that are summed, averaged or factor-scored.
+    pass_if: The paper reports a factor analysis or another dimensionality check supporting one score, or justifies the index's components and weights as a definition.
+    flag_if: Items are summed with no structural check, or a formative index is defended with internal consistency.
+    if_silent: flag
+    severity: medium
+    consequence: A sum over items that measure two constructs mixes them; an effect on the sum can come from either, and the weights silently set by summing decide which.
+    sources:
+      - mcneish2020thinking
+      - clark1995constructing
+  - id: MEA-CONSTRUCT-04
+    register: [measurement.reliability_reported]
+    pillar: construct
+    category: reporting
+    requirement: Report the reliability of each scale in this sample, and do not read coefficient alpha as evidence of unidimensionality or validity.
+    applies_to: Multi-item scales and human-coded variables.
+    pass_if: Alpha or omega is reported for scales and an agreement statistic (kappa, Krippendorff's alpha) for codings, computed in this sample.
+    flag_if: Reliability is missing, borrowed from another study, or used to argue the scale measures one thing.
+    if_silent: flag
+    severity: low
+    consequence: Low reliability attenuates correlations and regression slopes on the measure, and widens effects' sampling variance when it is the outcome.
+    sources:
+      - cronbach1951coefficient
+      - sijtsma2009use
+  - id: MEA-CONSTRUCT-05
+    register: [measurement.statements_vs_behavior]
+    pillar: construct
+    category: data
+    requirement: Do not read self-reported intentions, attitudes or recalled behavior as the behavior itself.
+    applies_to: Claims about behavior that rest on self-reports.
+    pass_if: The claim is worded about reports, or the paper validates the self-report against records of the behavior.
+    flag_if: A self-report (intended to vote, reported donating) supports a claim about the act.
+    if_silent: flag
+    severity: medium
+    consequence: Over-reporting that differs by treatment or group biases the contrast, not only its precision; validated-vote studies show it is often large.
+    sources:
+      - bound2001measurement
+  - id: MEA-STAT-01
+    register: [measurement.attenuation_claim_justified, measurement.measurement_error_discussed]
+    pillar: claim_fit
+    category: inference
+    requirement: When the paper says measurement error makes its estimates conservative, the error must be of the kind that only attenuates.
+    applies_to: Papers that discuss measurement error in an outcome or regressor, or call their estimate a lower bound because of it.
+    pass_if: The argument holds for the stated error. Classical error in a single regressor attenuates its slope; classical error in the outcome adds variance but no bias. With other mismeasured regressors, error correlated with the truth, or error that differs by group or arm, the bias can go either way, and the paper says so.
+    flag_if: The estimate is called conservative or a lower bound without showing the error is classical and in the regressor, or measurement error in key variables goes unmentioned.
+    if_silent: flag
+    severity: medium
+    consequence: Non-classical or differential error can inflate an estimate as easily as shrink it, so a "conservative" reading can overstate the evidence.
+    sources:
+      - hausman2001mismeasured
+      - bound2001measurement
+  - id: MEA-RECORD-01
+    register: [measurement.construct_map_scoring, measurement.index_components_decomposed]
+    pillar: record
+    category: reporting
+    requirement: Report each scale's items, response options, coding direction and scoring rule so that the score can be rebuilt.
+    applies_to: Scales, indices and coded variables a claim depends on.
+    pass_if: Items, reverse-coded items, weights and the treatment of missing items are given in the text or an appendix.
+    flag_if: The score cannot be rebuilt from what the paper reports.
+    if_silent: flag
+    severity: low
+    consequence: Without the scoring rule a reader cannot check that the score is what the label says, or redo the analysis on one component.
+    sources:
+      - appelbaum2018jars

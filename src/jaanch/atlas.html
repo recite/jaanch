@@ -84,11 +84,11 @@ $('#grid').addEventListener('click', e => { const c = e.target.closest('td[data-
 const IP = ['construct', 'internal', 'statistical', 'external', 'record', 'claim_fit'];
 let ih = '<tr><th>design</th>' + IP.map(p => '<th>' + p + '</th>').join('') + '</tr>';
 for (const mod of D.modules) {
-  ih += '<tr><th>' + esc(mod.title) + '<div class="muted" style="font-weight:400">' + esc(mod.designs.join(', ')) + '</div></th>';
+  ih += '<tr><th>' + esc(mod.title) + '<div class="muted" style="font-weight:400">' + esc(mod.designs.concat(mod.data || []).join(', ')) + '</div></th>';
   for (const p of IP) {
     const items = mod.checks.filter(c => c.pillar === p);
     const tagged = D.rows.filter(r => r.design && mod.designs.includes(r.design) && inPillar(r, p)).length;
-    ih += '<td>' + (items.length ? '<ul>' + items.map(c => '<li>' + esc(c.requirement) + '<div class="muted" style="font-size:12px">' + c.sources.map(s => esc((D.bib[s.split(':')[0]] || s) + (s.includes(':') ? ', ' + s.split(': ').slice(1).join(': ') : ''))).join('; ') + '</div></li>').join('') + '</ul>' : '<span class="none">no decision rule</span>') + (tagged ? '<div class="muted">+' + tagged + ' register checks</div>' : '') + '</td>';
+    ih += '<td>' + (items.length ? '<ul>' + items.map(c => '<li>' + esc(c.requirement) + (c.consequence ? '<div style="font-size:12.5px"><i>If not:</i> ' + esc(c.consequence) + (c.tools ? ' <span class="muted">Test with: ' + esc(c.tools.join(', ')) + '</span>' : '') + '</div>' : '') + '<div class="muted" style="font-size:12px">' + c.sources.map(s => esc((D.bib[s.split(':')[0]] || s) + (s.includes(':') ? ', ' + s.split(': ').slice(1).join(': ') : ''))).join('; ') + '</div></li>').join('') + '</ul>' : '<span class="none">no decision rule</span>') + (tagged ? '<div class="muted">+' + tagged + ' register checks</div>' : '') + '</td>';
   }
   ih += '</tr>';
 }

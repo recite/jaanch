@@ -149,3 +149,58 @@ def test_plain_handles_emphasis_over_operators_and_html_superscripts():
 )
 def test_sums(row, ok):
     assert (exact.check_sum(row) == []) is ok
+
+
+RATE_ROW = {
+    "id": "r1",
+    "quote": "matched 4,112 of 5,000 treated and 3,870 of 5,000 control",
+    "what": "match rate",
+    "groups": [
+        {"name": "treated", "k": "4,112", "n": "5,000"},
+        {"name": "control", "k": "3,870", "n": "5,000"},
+    ],
+}
+
+
+def test_differential_match_rate_is_flagged_and_similar_rates_are_not():
+    from jaanch.exact import check_rates
+
+    (found,) = check_rates(RATE_ROW)
+    assert "match rate differs" in found and "82.2%" in found and "77.4%" in found
+    similar = dict(
+        RATE_ROW, groups=[{"name": "t", "k": "4112", "n": "5000"}, {"name": "c", "k": "4090", "n": "5000"}]
+    )
+    assert check_rates(similar) == []
+
+
+def test_small_groups_use_fishers_exact_test():
+    from jaanch.exact import check_rates
+
+    row = dict(RATE_ROW, groups=[{"name": "t", "k": "6", "n": "6"}, {"name": "c", "k": "0", "n": "6"}])
+    (found,) = check_rates(row)
+    assert "Fisher's exact" in found
+
+
+def test_assignment_counts_against_designed_shares():
+    from jaanch.exact import check_rates
+
+    row = {
+        "id": "a",
+        "quote": "",
+        "groups": [{"name": "t", "n": "1,083", "share": 0.5}, {"name": "c", "n": "917", "share": 0.5}],
+    }
+    (found,) = check_rates(row)
+    assert "expected 1000" in found
+    balanced = dict(
+        row, groups=[{"name": "t", "n": "1010", "share": 0.5}, {"name": "c", "n": "990", "share": 0.5}]
+    )
+    assert check_rates(balanced) == []
+
+
+def test_impossible_counts_are_refused():
+    from jaanch.exact import check_rates
+
+    with pytest.raises(ValueError, match="greater than n"):
+        check_rates(
+            dict(RATE_ROW, groups=[{"name": "t", "k": "6", "n": "5"}, {"name": "c", "k": "1", "n": "5"}])
+        )

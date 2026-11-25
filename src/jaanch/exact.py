@@ -8,6 +8,9 @@ verbatim quote it came from. Computation then decides consistency:
 
 - p-values from test statistics: R statcheck (validated; Nuijten et al.)
 - GRIM, GRIMMER, DEBIT for means and SDs: R scrutiny
+- rates by group (match, response or retention rates by arm) and
+  assignment counts against the designed shares: here, as chi-square tests
+  on reported counts (scipy).
 - coefficient, SE, stars, t, p and confidence interval within one table
   cell: here. No maintained package covers regression tables; the math is
   a few lines on scipy, and every bound accounts for rounding, so a cell is
@@ -34,6 +37,11 @@ EXACT = "exact"
 MEANS = "means.jsonl"
 COEFS = "coefs.jsonl"
 SUMS = "sums.jsonl"
+RATES = "rates.jsonl"
+# One test per reported table of rates, so a conventional level without a
+# multiplicity correction. Large online experiments use far stricter levels for
+# sample ratio mismatch because they test thousands of experiments.
+RATE_ALPHA = 0.01
 RESULTS = "results.jsonl"
 CANDIDATES = Path("candidates") / "exact.jsonl"
 R_PACKAGES = ["statcheck", "scrutiny", "jsonlite"]
@@ -249,6 +257,56 @@ def check_sum(row: dict) -> list[str]:
     return []
 
 
+def _count(value: str, where: str, field: str) -> int:
+    number = _number(value.replace(",", ""), where, field)
+    if number != int(number) or number < 0:
+        raise ValueError(f"{where}: {field} {value!r} is not a count")
+    return int(number)
+
+
+def check_rates(row: dict) -> list[str]:
+    """Rates that should not differ across groups, or assignment counts that should match designed shares.
+
+    groups: [{"name", "k", "n"}] tests whether the share k/n is the same in
+    every group (chi-square test of homogeneity; Fisher's exact test for two
+    groups with an expected cell below 5). groups: [{"name", "n", "share"}]
+    tests the counts n against the designed shares (chi-square goodness of fit).
+    """
+    where, groups = row["id"], row["groups"]
+    if len(groups) < 2:
+        raise ValueError(f"{where}: needs at least two groups")
+    if all("share" in g for g in groups):
+        observed = [_count(g["n"], where, "n") for g in groups]
+        shares = [float(g["share"]) for g in groups]
+        expected = [sum(observed) * s / sum(shares) for s in shares]
+        p = stats.chisquare(observed, expected).pvalue
+        if p < RATE_ALPHA:
+            got = ", ".join(
+                f"{g['name']} {o} (expected {e:.0f})" for g, o, e in zip(groups, observed, expected)
+            )
+            return [
+                f"assignment counts {got} are unlikely under the designed shares (chi-square p = {p:.2g})"
+            ]
+        return []
+    table = []
+    for g in groups:
+        k, n = _count(g["k"], where, "k"), _count(g["n"], where, "n")
+        if k > n:
+            raise ValueError(f"{where}: {g['name']} has k {k} greater than n {n}")
+        table.append([k, n - k])
+    if len(table) == 2 and min(stats.contingency.expected_freq(table).flatten()) < 5:
+        p = stats.fisher_exact(table).pvalue
+        test = "Fisher's exact"
+    else:
+        p = stats.chi2_contingency(table, correction=False).pvalue
+        test = "chi-square"
+    if p < RATE_ALPHA:
+        what = row.get("what", "rate")
+        got = ", ".join(f"{g['name']} {k / (k + m):.1%} ({k}/{k + m})" for g, (k, m) in zip(groups, table))
+        return [f"The {what} differs across groups: {got} ({test} p = {p:.2g})"]
+    return []
+
+
 def _extraction_problems(rows: list[dict], fields: list[str], paper: str, name: str) -> list[Problem]:
     """Every extracted number must sit in its quote, and the quote in the paper."""
     problems = []
@@ -265,7 +323,26 @@ def _extraction_problems(rows: list[dict], fields: list[str], paper: str, name: 
     return problems
 
 
+DIFFERENCE_TITLES = ("Rates differ by group", "Assignment counts depart from the design")
+
+
 def _comment(number: int, title: str, row: dict, message: str, severity: str) -> dict:
+    if title in DIFFERENCE_TITLES:
+        return {
+            "id": f"exact_{number:03d}",
+            "goal": "completeness",
+            "title": title,
+            "quote": row["quote"],
+            "location": row.get("location") or row.get("_line") or "paper.txt",
+            "message": message
+            + ". A difference this large acts like differential attrition or measurement: the comparison "
+            "is between groups that no longer match the ones assigned.",
+            "suggestion": "Report the difference, test whether it changes the main estimate "
+            "(bounds, reweighting), and explain its source.",
+            "severity": severity,
+            "kind": "substance/methodology",
+            "fix_effort": "new_work",
+        }
     return {
         "id": f"exact_{number:03d}",
         "goal": "consistency",
@@ -289,6 +366,7 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
     means = read_jsonl(folder / MEANS) if (folder / MEANS).exists() else []
     coefs = read_jsonl(folder / COEFS) if (folder / COEFS).exists() else []
     sums = read_jsonl(folder / SUMS) if (folder / SUMS).exists() else []
+    rates = read_jsonl(folder / RATES) if (folder / RATES).exists() else []
     problems = _extraction_problems(means, ["x", "sd", "n"], paper, MEANS)
     problems += _extraction_problems(coefs, ["coef", "se", "t", "p", "ci_low", "ci_high"], paper, COEFS)
     problems += [
@@ -310,6 +388,15 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
             ]
             if missing:
                 problems.append(Problem(where, f"{', '.join(missing)} do not appear in its quote"))
+    for row in rates:
+        where = f"exact/{RATES} {row.get('id')}"
+        if not anchor_quote(row.get("quote", ""), paper):
+            problems.append(Problem(where, "quote is not in paper.txt"))
+            continue
+        numbers = [g.get(f) for g in row.get("groups", []) for f in ("k", "n") if g.get(f)]
+        missing = [v for v in numbers if v not in row["quote"]]
+        if missing:
+            problems.append(Problem(where, f"{', '.join(missing)} do not appear in its quote"))
     bad = {p.where.split()[-1] for p in problems}
     results, comments = [], []
 
@@ -338,6 +425,23 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
         results.append({"check": "sum", "id": row["id"], "consistent": not found, "detail": found})
         if found:
             comments.append(("Counts do not add up", row, "; ".join(found)))
+
+    for row in rates:
+        if row["id"] in bad:
+            continue
+        try:
+            found = check_rates(row)
+        except (ValueError, KeyError) as error:
+            problems.append(Problem(f"exact/{RATES} {row['id']}", str(error)))
+            continue
+        results.append({"check": "rates", "id": row["id"], "consistent": not found, "detail": found})
+        if found:
+            title = (
+                "Assignment counts depart from the design"
+                if found[0].startswith("Assignment")
+                else "Rates differ by group"
+            )
+            comments.append((title, row, "; ".join(found)))
 
     ok, why = r_status()
     summary = {"r": why, "coef_cells": len([r for r in results if r["check"] == "coef_cell"])}
@@ -405,7 +509,7 @@ def run_exact(run_dir: Path) -> tuple[dict, list[Problem]]:
         summary["means"] = sum(len(out.get(c) or []) for c in ("grim", "grimmer", "debit"))
 
     (folder / RESULTS).write_text("".join(json.dumps(r) + "\n" for r in results))
-    serious = ("does not match its test statistic", "inconsistency")
+    serious = ("does not match its test statistic", "inconsistency", "Rates differ", "Assignment counts")
     for _, row, _ in comments:
         line = locate_line(row["quote"], text)
         row["_line"] = f"line {line}" if line else ""

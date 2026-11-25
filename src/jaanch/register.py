@@ -109,7 +109,7 @@ def render_page(rows: list[dict], modules: dict[str, dict]) -> str:
         "pillar_text": PILLAR_TEXT,
         "bib": load_bib(),
         "modules": [
-            {"title": m["title"], "designs": m["designs"], "checks": m["checks"]}
+            {"title": m["title"], "designs": m["designs"], "data": m.get("data", []), "checks": m["checks"]}
             for name, m in modules.items()
             if name != "universal"
         ]

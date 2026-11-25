@@ -1,0 +1,82 @@
+module: predicted_data
+title: Variables predicted by a model
+prefix: PRD
+designs: []
+data: [model_predicted]
+applies_when: >-
+  An outcome, treatment or covariate is the output of a classifier, a
+  language model, a predictive model or another estimation step (text
+  labels, imputed race or gender, domain categories, fitted values,
+  satellite estimates), not a direct record.
+checks:
+  - id: PRD-DATA-01
+    register: [measurement.label_errors_audited, measurement.predicted_variable_validated]
+    pillar: construct
+    category: data
+    requirement: Report the prediction's accuracy against true labels on held-out data drawn from the analysis population, overall and for the groups the claims compare.
+    applies_to: Every predicted variable a claim depends on.
+    pass_if: The paper reports precision, recall or a confusion matrix (for categories) or error and calibration (for continuous predictions) on a held-out sample from the analysis data, by group.
+    flag_if: Accuracy comes from the training set, another population or the tool's documentation, or is not reported.
+    if_silent: flag
+    severity: high
+    consequence: Accuracy elsewhere does not bound error here. Without it, nothing limits how far the downstream estimate is from the one true labels would give.
+    sources:
+      - knox2022testing
+      - wang2020methods
+  - id: PRD-STAT-01
+    register: [inference.prediction_error_corrected, inference.generated_quantities_uncertainty]
+    pillar: statistical
+    category: inference
+    requirement: Correct estimates and standard errors for prediction error with a validation sample, instead of treating predictions as data.
+    applies_to: Regressions or means computed on predicted variables.
+    pass_if: The paper uses a correction that combines predictions with a sample of true labels (prediction-powered inference, design-based supervised learning, a measurement-error model), or shows the estimate is unchanged on the labeled subset.
+    flag_if: Predictions are plugged in as if they were true values.
+    if_silent: flag
+    severity: high
+    consequence: A predicted covariate behaves like a mismeasured one, biasing its slope and others'. A predicted outcome is biased whenever prediction error is correlated with the regressors. Either way, standard errors ignore the prediction step and are too small.
+    tools: [total_error]
+    sources:
+      - angelopoulos2023prediction
+      - fong2020machine
+      - wang2020methods
+  - id: PRD-STAT-02
+    register: [inference.shared_label_error]
+    pillar: statistical
+    category: inference
+    requirement: When one predicted label feeds many records or several constructed variables, allow for the errors it shares across them.
+    applies_to: Predicted labels of items (domains, products, documents, places) that many records reuse, or that enter more than one constructed variable.
+    pass_if: Standard errors are clustered on the labeled item, or computed from an audit of items, and the paper notes which variables share labels.
+    flag_if: Records are treated as independent although they reuse the same predicted labels.
+    if_silent: flag
+    severity: medium
+    consequence: One item mistake moves every record that uses the item and every variable built from it. Errors are then correlated across records, so record-level standard errors understate the uncertainty, and covariates that share labels share their errors.
+    tools: [total_error]
+    sources: []
+  - id: PRD-INTERNAL-01
+    register: [identification.differential_prediction_error]
+    pillar: internal
+    category: identification
+    requirement: Show that prediction error does not differ across the arms or groups the claims compare.
+    applies_to: Predicted variables used in a contrast between arms, groups or periods.
+    pass_if: Accuracy is reported by arm or group and is similar, or the correction in PRD-STAT-01 is applied within each.
+    flag_if: The model was trained or validated on one group and applied to another, or accuracy by group is not reported.
+    if_silent: flag
+    severity: high
+    consequence: Error that differs by group is a bias in the contrast, not noise. A classifier that misses more of one group's cases manufactures a gap or hides one.
+    sources:
+      - knox2022testing
+      - fong2020machine
+  - id: PRD-STAT-03
+    register: [inference.generated_quantities_uncertainty]
+    pillar: statistical
+    category: inference
+    requirement: When a regressor is estimated in a first step (fitted values, propensity scores, residuals, factor scores), adjust the second step's standard errors for it.
+    applies_to: Two-step estimators with a generated regressor.
+    pass_if: The paper uses a two-step variance correction, bootstraps both steps together, or estimates them jointly.
+    flag_if: The second step's standard errors treat the generated regressor as data.
+    if_silent: flag
+    severity: medium
+    consequence: First-step sampling error is left out, so second-step standard errors are too small, sometimes by a lot.
+    sources:
+      - murphy1985estimation
+      - pagan1984econometric

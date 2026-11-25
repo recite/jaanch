@@ -39,11 +39,18 @@
         },
         "designs": {
           "type": "array",
-          "minItems": 1,
+          "minItems": 0,
           "items": {
             "type": "string"
           },
           "description": "paper-model designs that route a paper to this checklist; universal lists every empirical design"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "how-the-data-were-made values that route a paper here: map.json data_sources features, measure sources and measure forms"
         }
       }
     },
@@ -135,6 +142,18 @@
             "type": "string"
           },
           "description": "the register checks this decision rule implements"
+        },
+        "consequence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "what goes wrong in the estimate or its uncertainty when the check fails"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "tools that can run the test when code and data are present"
         }
       }
     },

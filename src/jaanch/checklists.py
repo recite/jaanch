@@ -61,6 +61,8 @@ def validate_checklists(checklists: dict[str, dict]) -> list[Problem]:
             continue
         if checklist["module"] != name:
             problems.append(Problem(where, f"module {checklist['module']!r} must match the file name"))
+        if not checklist["designs"] and not checklist.get("data"):
+            problems.append(Problem(where, "routes no paper: give designs or data"))
         prefix = checklist["prefix"]
         if prefix in prefixes:
             problems.append(Problem(where, f"prefix {prefix} is also used by {prefixes[prefix]}"))
@@ -94,17 +96,37 @@ def validate_checklists(checklists: dict[str, dict]) -> list[Problem]:
     return problems
 
 
+def data_features(model: dict) -> set[str]:
+    """How the paper's data were made, as map.json records it: source features, measure sources and forms."""
+    features = {feature for source in model.get("data_sources", []) for feature in source.get("features", [])}
+    for measure in model.get("measures", []):
+        features |= {measure["source"], measure["form"]}
+    return features
+
+
+def routed_modules(model: dict, checklists: dict[str, dict] | None = None) -> list[str]:
+    """Modules a paper is routed to: by its designs, or by how its data were made."""
+    checklists = checklists or load_checklists()
+    designs = {item["design"] for item in model.get("designs", [])}
+    features = data_features(model)
+    return [
+        name
+        for name, checklist in checklists.items()
+        if designs & set(checklist["designs"]) or features & set(checklist.get("data", []))
+    ]
+
+
 def check_coverage(run_dir: Path) -> tuple[list[str], list[Problem]]:
     """Confirm every check of every routed checklist has a verdict, and every reportable flag a comment.
 
     A paper is routed to a checklist when map.json names one of the checklist's
-    designs; jaanch check-map has already validated those designs.
+    designs, or when its data sources or measures carry one of the checklist's
+    data values; jaanch check-map has already validated both.
     """
     checklists = load_checklists()
     problems: list[Problem] = []
 
-    designs = {item["design"] for item in json.loads((run_dir / "map.json").read_text()).get("designs", [])}
-    routed = [name for name, checklist in checklists.items() if designs & set(checklist["designs"])]
+    routed = routed_modules(json.loads((run_dir / "map.json").read_text()), checklists)
 
     expected = {check["id"]: module for module in routed for check in checklists[module]["checks"]}
     audit_path = run_dir / AUDIT_FILE
