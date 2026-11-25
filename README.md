@@ -25,6 +25,8 @@ section, in parallel:
 | logic, derivations, proofs, method, overclaiming | `jaanch_check_reasoning` |
 | text, tables, figures and numbers agree; recomputes what it can | `jaanch_check_consistency` |
 | what a paper of this design must report but leaves out, first against fixed design checklists | `jaanch_check_completeness` |
+| the same fact stated two incompatible ways (sample, design, measure, construct, result) | `jaanch_check_xref` |
+| copies reported numbers for `jaanch exact` to recompute (p-values, GRIM/GRIMMER/DEBIT, table cells, sums, rates by group) | `jaanch_extract_numbers` |
 | cited works exist, are not retracted, and say what is claimed | `jaanch_check_references` |
 | novelty claims that miss published work | `jaanch_check_prior_art` |
 | passages that make readers work too hard | `jaanch_check_writing` |

@@ -38,7 +38,8 @@ a PDF, ask them for the `.tex`, `.md` or text version.
 
 Spawn `jaanch_map_paper` on `<run>`. It writes `<run>/map.json`, the paper
 model: the question, the claims with their estimands, the designs, the data
-sources, sections, numbers and exhibits. Wait for it, then run
+sources and how they were made, the measure behind each construct a claim
+names, sections, numbers and exhibits. Wait for it, then run
 
 ```sh
 jaanch check-map <run>
@@ -47,7 +48,8 @@ jaanch check-map <run>
 If it reports problems, send them to `jaanch_map_paper` and run it again.
 Read `map.json`; you need the section ids and line ranges. Keep the summary
 lines that start "paper does not state" or "is causal but": they are
-findings for the report.
+findings for the report. The designs, the data sources' `features` and the
+measures together decide which checklists `jaanch checklists <run>` lists.
 
 ## 3. Find problems: spawn all of these in parallel, then wait for all
 
@@ -79,8 +81,10 @@ continue, and report the missing goal at the end.
 
 When `jaanch_extract_numbers` finishes, run `jaanch exact <run>`. It
 recomputes reported p-values (statcheck), means and SDs (GRIM, GRIMMER,
-DEBIT) and regression cells (stars, t, p and CI against coefficient and
-SE), and writes what does not add up to `<run>/candidates/exact.jsonl`. Its
+DEBIT), regression cells (stars, t, p and CI against coefficient and
+SE), counts that should sum to a total, and rates by group (match,
+retention or response by arm, and assignment counts against the designed
+shares), and writes what does not add up to `<run>/candidates/exact.jsonl`. Its
 summary says if R is missing; then only the table cells were checked, and
 the report must say so.
 

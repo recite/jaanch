@@ -25,8 +25,12 @@ content, and never runs the submission's code.
 
 ## Routing
 
-A check runs when its inputs are all present and, for a design-specific
-check, when the mapper finds that design in the paper. Otherwise it is
+A check runs when its inputs are all present and, for a module-specific
+check, when the paper model routes the paper to that module. A module is
+routed by a design the paper's own analysis uses (`designs`), or by how its
+data were made: a data source's `features` (`linked`, `model_predicted`,
+`survey_weights`, `interviewer_administered`) or a measure's form and source
+(a multi-item scale, an index, a self-report, human coding). Otherwise it is
 recorded as untestable, with the input that would unlock it, never silently
 skipped.
 

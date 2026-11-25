@@ -45,13 +45,21 @@ coarse.
 ```
 paper (.md/.tex/.txt; PDF via ingest)
   │
-  ├─ jaanch_map_paper ─────────────► map.json: sections, main claims, numbers, references,
-  │                                   designs (routes the paper to design checklists)
+  ├─ jaanch start <folder|file>  ──► inventory.json: what inputs exist (docs/intake.md)
+  │
+  ├─ jaanch_map_paper ─────────────► map.json, the paper model: claims and estimands, designs,
+  │                                   data sources and their features, measures, sections,
+  │                                   numbers, exhibits, references
+  ├─ jaanch check-map             (quotes anchored, sections cover every line, every claim's
+  │                                 outcome and causal treatment has a measure)
   │
   ├─ fan out, in parallel ──► candidates/<goal>[_<section>].jsonl
   │    jaanch_check_reasoning × each section
   │    jaanch_check_consistency
   │    jaanch_check_completeness
+  │    jaanch_check_xref ──► jaanch xref (groups facts by key; judged only where they disagree)
+  │    jaanch_extract_numbers ──► jaanch exact (statcheck, GRIM/GRIMMER/DEBIT, table cells,
+  │                                 sums, rates by group)
   │    jaanch_check_references
   │    jaanch_check_prior_art
   │    jaanch_check_writing
@@ -61,6 +69,7 @@ paper (.md/.tex/.txt; PDF via ingest)
   │
   ├─ jaanch merge                 (drops comments whose quote is not in the paper)
   │
+  ├─ jaanch controls make        (mixes known-wrong comments into each skeptic batch)
   ├─ jaanch_verify_finding × each batch of ≤5, in parallel ─► verdicts.jsonl
   │
   ├─ jaanch_write_review ─────────────► review.json: dedupe, rank, tag, overall feedback
@@ -71,6 +80,50 @@ paper (.md/.tex/.txt; PDF via ingest)
 Each run writes to `reviews/<paper_slug>/`. That folder is gitignored because
 papers are usually unpublished.
 
+## Pillars, mechanisms and modules
+
+Every check in `src/jaanch/checks/register.jsonl` protects one **pillar**,
+what a paper must get right, and uses one **mechanism**, how a problem is
+caught. `jaanch checks grid` prints the pillar × mechanism table, and
+`jaanch checks page` renders it with the register as an HTML atlas.
+
+| pillar | question | foundation |
+|---|---|---|
+| record | is what is reported what was done? | reproducibility; statcheck, GRIM |
+| construct | do the measures capture the constructs the claims name? | Cronbach and Meehl (1955) |
+| internal | does the design identify the causal claim: estimand, assumptions, evidence? | Rubin; Holland; Shadish, Cook and Campbell (2002) |
+| statistical | is the uncertainty right? | Shadish, Cook and Campbell (2002) |
+| external | does it carry to the units, treatments, outcomes and settings claimed? | Cronbach (1982) |
+| claim_fit | do the conclusions follow, at the strength stated? | Meehl |
+| contribution | is it new, and does it matter? | the literature map |
+
+Presentation and process are tracked too, outside the pillars. The
+mechanisms are `exact` (arithmetic on reported numbers), `cross_reference`
+(the paper against itself), `checklist` (against a citable convention),
+`retrieval` (against outside records), `rerun` (code on data) and
+`judgment` (a model's reading, always verified).
+
+**Modules** in `src/jaanch/checklists/` say what using a design, or a kind of
+data, commits a paper to. Design modules (experiment, did, latent
+comparison, proof) route on `designs`. Data modules route on how the data
+were made, because one defect lands on several pillars: a linkage error
+changes N (record), attenuates (construct), differs by arm (internal) and
+invalidates p-values computed as if links were true (statistical). So
+each data-module item states the defect, its `consequence` for the
+estimate, and the `tools` that test it when code and data are present:
+
+| module | routed by | tools |
+|---|---|---|
+| `measurement` | a measure that is a scale, an index, a self-report or human-coded | |
+| `linked_data` | a data source or measure built by record linkage | preclink, causal_linkage, `jaanch exact` rates |
+| `predicted_data` | a variable that is a model's or classifier's output | total_error |
+| `survey_data` | survey weights, a complex sample, or interviewers | studyframe, interviewer-checks |
+
+Running those tools on a replication package is not built yet; today the
+items are judged from the paper, and match rates by arm are tested by
+`jaanch exact`. Every item cites its sources by key in
+`src/jaanch/checks/sources.bib`, added with `jaanch sources add`.
+
 ## One source of truth for two hosts
 
 Codex and Claude Code read the same skill format (the agentskills.io
@@ -79,7 +132,7 @@ formats. So:
 
 - the orchestrating skill lives at `.agents/skills/jaanch-review/` (Codex), and
   `.claude/skills/jaanch-review` is a symlink to it;
-- each subagent's instructions live once, in `agents/<name>.md`, and
+- each subagent's instructions live once, in `agents/roles/<name>.md`, and
   `make agents` renders them to `.claude/agents/<name>.md` and
   `.codex/agents/<name>.toml`. A test fails if the rendered files are stale.
 
