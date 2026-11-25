@@ -36,3 +36,26 @@ def test_a_doi_that_resolves_to_another_title_is_refused(bib):
 
 def test_a_doi_already_in_the_bib_returns_its_key(bib):
     assert sources.add("10.1/TAKEN", "anything", bib) == "lahiri2005regression"
+
+
+PAGE = {
+    "title": "[74] In Press at Psychological Science: A New Nudge Supported by Implausible Data",
+    "site": "Data Colada",
+    "year": 2018,
+}
+
+
+def test_a_page_with_no_doi_is_added_from_its_own_title(bib, monkeypatch):
+    monkeypatch.setattr(sources, "page_record", lambda url: PAGE)
+    key = sources.add_url(
+        "https://datacolada.org/74", "A New Nudge Supported by Implausible Data", "Data Colada", bib
+    )
+    assert key == "datacolada74"
+    assert "author = {{Data Colada}}" in bib.read_text() and "year = {2018}" in bib.read_text()
+    assert sources.add_url("https://datacolada.org/74", "anything", "x", bib) == "datacolada74"
+
+
+def test_a_page_whose_title_differs_is_refused(bib, monkeypatch):
+    monkeypatch.setattr(sources, "page_record", lambda url: PAGE)
+    with pytest.raises(ValueError, match="not 'Small Telescopes'"):
+        sources.add_url("https://datacolada.org/74", "Small Telescopes", "Data Colada", bib)

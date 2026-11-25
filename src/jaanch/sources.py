@@ -1,12 +1,14 @@
-"""Grow checks/sources.bib from Crossref records, never from memory.
+"""Grow checks/sources.bib from Crossref records or the page itself, never from memory.
 
 Every decision rule and register check cites works by key in sources.bib, so
 a wrong entry propagates into every page that shows the source. An entry is
 added only from the Crossref record for its DOI, and only when that record's
 title matches the title the caller expects, which catches a DOI that resolves
-to some other paper.
+to some other paper. A work with no DOI (a blog post) is added from its page:
+the page's own title must match, and its publication date gives the year.
 """
 
+import html
 import re
 import unicodedata
 from importlib.resources import files
@@ -114,4 +116,63 @@ def add(doi: str, expected_title: str, path: Path | None = None) -> str:
     taken = set(re.findall(r"@\w+\{([^,]+),", text))
     key = make_key(record, taken)
     path.write_text(text.rstrip("\n") + "\n\n" + entry(record, key, doi))
+    return key
+
+
+META = re.compile(r'<meta[^>]+(?:property|name)="([^"]+)"[^>]+content="([^"]*)"', re.I)
+
+
+def page_record(url: str) -> dict:
+    """Title, site name and year a page states about itself."""
+    from jaanch.lit import get_public
+
+    response = get_public(url)
+    response.raise_for_status()
+    text = response.raw.read(2_000_000, decode_content=True).decode("utf-8", "replace")
+    response.close()
+    meta = {name.lower(): html.unescape(value) for name, value in META.findall(text)}
+    title = meta.get("og:title") or html.unescape(
+        re.search(r"<title>(.*?)</title>", text, re.S | re.I).group(1)
+    )
+    published = meta.get("article:published_time", "")
+    return {
+        "title": " ".join(title.split()),
+        "site": meta.get("og:site_name", ""),
+        "year": int(published[:4]) if published[:4].isdigit() else None,
+    }
+
+
+def url_key(url: str) -> str:
+    """datacolada.org/74 -> datacolada74."""
+    from urllib.parse import urlparse
+
+    parts = urlparse(url)
+    host = parts.netloc.lower().removeprefix("www.").split(".")[0]
+    tail = re.sub(r"[^a-z0-9]", "", parts.path.lower().rstrip("/").split("/")[-1])
+    return re.sub(r"[^a-z0-9]", "", host) + tail
+
+
+def add_url(url: str, expected_title: str, author: str, path: Path | None = None) -> str:
+    """Append a @misc entry for a page with no DOI and return its key (or the key it already has)."""
+    path = path or bib_path()
+    text = path.read_text()
+    existing = dict((u, k) for k, u in re.findall(r"@\w+\{([^,]+),[^@]*?url = \{([^}]+)\}", text))
+    if url in existing:
+        return existing[url]
+    record = page_record(url)
+    score = fuzz.token_set_ratio(_ascii(expected_title), _ascii(record["title"]))
+    if score < TITLE_MATCH:
+        raise ValueError(f"{url} is {record['title']!r}, not {expected_title!r} (match {score:.0f})")
+    key = url_key(url)
+    if re.search(rf"@\w+\{{{re.escape(key)},", text):
+        raise ValueError(f"key {key} is taken by another entry")
+    fields = {
+        "author": f"{{{author}}}",
+        "title": record["title"],
+        "year": record["year"],
+        "howpublished": record["site"],
+        "url": url,
+    }
+    body = ",\n".join(f"  {name} = {{{value}}}" for name, value in fields.items() if value)
+    path.write_text(text.rstrip("\n") + "\n\n" + f"@misc{{{key},\n{body}\n}}\n")
     return key

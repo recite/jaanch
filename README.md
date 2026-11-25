@@ -83,7 +83,9 @@ Every checklist item and register check cites the works it rests on by key
 in `src/jaanch/checks/sources.bib`; validation rejects a key that is not
 there. Add a work from its Crossref record with
 `jaanch sources add <doi> "<expected title>"`, which refuses a DOI whose
-record has a different title.
+record has a different title. A work with no DOI, such as a blog post, is
+added from its page with `jaanch sources add <url> "<expected title>"
+--author "<author>"`; the page's own title must match.
 
 ## Develop
 

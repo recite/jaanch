@@ -227,7 +227,16 @@ def _sources(args: argparse.Namespace) -> int:
     from jaanch import sources
 
     try:
-        key = sources.add(args.doi, args.title)
+        if args.doi.startswith(("http://", "https://")):
+            if not args.author:
+                print(
+                    "a URL needs --author (a person, or an organization such as 'Data Colada')",
+                    file=sys.stderr,
+                )
+                return 2
+            key = sources.add_url(args.doi, args.title, args.author)
+        else:
+            key = sources.add(args.doi, args.title)
     except (LookupError, ValueError) as error:
         print(error, file=sys.stderr)
         return 1
@@ -347,8 +356,9 @@ def build_parser() -> argparse.ArgumentParser:
         "sources", help="add a work to checks/sources.bib from its Crossref record"
     )
     sources_cmd.add_argument("action", choices=["add"])
-    sources_cmd.add_argument("doi")
+    sources_cmd.add_argument("doi", help="a DOI, or the URL of a page with no DOI")
     sources_cmd.add_argument("title", help="the title you expect; a DOI that resolves elsewhere is refused")
+    sources_cmd.add_argument("--author", help="author for a URL entry; Crossref supplies it for a DOI")
     sources_cmd.set_defaults(handler=_sources)
 
     forensics_cmd = commands.add_parser(
