@@ -59,7 +59,9 @@ paper (.md/.tex/.txt; PDF via ingest)
   │    jaanch_check_completeness
   │    jaanch_check_xref ──► jaanch xref (groups facts by key; judged only where they disagree)
   │    jaanch_extract_numbers ──► jaanch exact (statcheck, GRIM/GRIMMER/DEBIT, table cells,
-  │                                 sums, rates by group)
+  │                                 sums, rates by group, design analysis)
+  │    jaanch forensics (with deposited data: duplicate and near-duplicate records,
+  │                       last digits)
   │    jaanch_check_references
   │    jaanch_check_prior_art
   │    jaanch_check_writing

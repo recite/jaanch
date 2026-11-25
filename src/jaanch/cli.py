@@ -235,6 +235,14 @@ def _sources(args: argparse.Namespace) -> int:
     return 0
 
 
+def _forensics(args: argparse.Namespace) -> int:
+    from jaanch.forensics import run_forensics
+
+    summary = run_forensics(args.run_dir)
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
 def _render(args: argparse.Namespace) -> int:
     sys.stdout.write(render_review(json.loads(args.review.read_text())))
     return 0
@@ -342,6 +350,12 @@ def build_parser() -> argparse.ArgumentParser:
     sources_cmd.add_argument("doi")
     sources_cmd.add_argument("title", help="the title you expect; a DOI that resolves elsewhere is refused")
     sources_cmd.set_defaults(handler=_sources)
+
+    forensics_cmd = commands.add_parser(
+        "forensics", help="screen deposited data for duplicate records and non-uniform last digits"
+    )
+    forensics_cmd.add_argument("run_dir", type=Path)
+    forensics_cmd.set_defaults(handler=_forensics)
 
     controls_cmd = commands.add_parser(
         "controls", help="mix known-wrong comments into a skeptic batch, and score them"

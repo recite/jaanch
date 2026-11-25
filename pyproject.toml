@@ -23,6 +23,9 @@ dependencies = [
     "semanticscholar>=0.12.0",
 ]
 
+[project.optional-dependencies]
+data = ["pandas>=2.3", "pyarrow>=21", "pyreadstat>=1.3", "openpyxl>=3.1"]
+
 [project.urls]
 Homepage = "https://github.com/recite/jaanch"
 Issues = "https://github.com/recite/jaanch/issues"

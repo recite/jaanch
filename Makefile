@@ -5,7 +5,7 @@ PYTHON_SOURCES := src scripts tests eval
 .PHONY: sync lint format test agents check-agents ci ci-docker install uninstall
 
 sync:
-	uv sync
+	uv sync --all-extras
 
 lint: sync
 	uv run black --check $(PYTHON_SOURCES)

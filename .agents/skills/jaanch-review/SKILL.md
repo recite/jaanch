@@ -88,6 +88,13 @@ shares), and writes what does not add up to `<run>/candidates/exact.jsonl`. Its
 summary says if R is missing; then only the table cells were checked, and
 the report must say so.
 
+If `inventory.json` lists data files, run `jaanch forensics <run>`. It
+screens each readable file for duplicate and near-duplicate records and for
+last digits that are far from uniform, and writes what it finds to
+`<run>/candidates/forensics.jsonl`, quoting the paper's description of that
+data source. It needs the data extra (`pip install 'jaanch[data]'`). These
+are patterns to explain, not proof of misconduct; the report must say so.
+
 Then confirm the completeness finder worked through its checklists:
 
 ```sh
