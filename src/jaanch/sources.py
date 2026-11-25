@@ -78,6 +78,33 @@ def make_key(record: dict, taken: set[str]) -> str:
     return key
 
 
+# Characters that end a BibTeX field or start an entry or a command. Field
+# values come from Crossref or a fetched page, so a value holding them could
+# close its entry and append another; they are removed, not escaped.
+BIBTEX_SPECIAL = re.compile(r"[{}@\\]")
+
+
+def _clean(value) -> str:
+    return " ".join(BIBTEX_SPECIAL.sub("", str(value)).split())
+
+
+def _render(kind: str, key: str, fields: dict) -> str:
+    """One entry, refusing anything that would not read back as exactly that entry."""
+    if not re.fullmatch(r"[a-z0-9]+", key):
+        raise ValueError(f"key {key!r} must be lowercase letters and digits")
+    clean = {name: _clean(value) for name, value in fields.items() if value}
+    body = ",\n".join(f"  {name} = {{{value}}}" for name, value in clean.items())
+    text = f"@{kind}{{{key},\n{body}\n}}\n"
+    parsed = re.findall(r"@(\w+)\{([^,]+),\n(.*?)\n\}\n", text, re.S)
+    if (
+        len(parsed) != 1
+        or parsed[0][1] != key
+        or dict(re.findall(r"  (\w+) = \{(.*?)\}", parsed[0][2])) != clean
+    ):
+        raise ValueError(f"entry for {key} does not read back as one entry")
+    return text
+
+
 def entry(record: dict, key: str, doi: str) -> str:
     kind = KINDS.get(record.get("type") or "", "article")
     people = record.get("author") or record.get("editor") or []
@@ -92,8 +119,7 @@ def entry(record: dict, key: str, doi: str) -> str:
         "pages": (record.get("page") or "").replace("-", "--"),
         "doi": doi,
     }
-    body = ",\n".join(f"  {name} = {{{value}}}" for name, value in fields.items() if value)
-    return f"@{kind}{{{key},\n{body}\n}}\n"
+    return _render(kind, key, fields)
 
 
 def add(doi: str, expected_title: str, path: Path | None = None) -> str:
@@ -167,12 +193,11 @@ def add_url(url: str, expected_title: str, author: str, path: Path | None = None
     if re.search(rf"@\w+\{{{re.escape(key)},", text):
         raise ValueError(f"key {key} is taken by another entry")
     fields = {
-        "author": f"{{{author}}}",
+        "author": author,
         "title": record["title"],
         "year": record["year"],
         "howpublished": record["site"],
         "url": url,
     }
-    body = ",\n".join(f"  {name} = {{{value}}}" for name, value in fields.items() if value)
-    path.write_text(text.rstrip("\n") + "\n\n" + f"@misc{{{key},\n{body}\n}}\n")
+    path.write_text(text.rstrip("\n") + "\n\n" + _render("misc", key, fields))
     return key

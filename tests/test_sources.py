@@ -51,7 +51,7 @@ def test_a_page_with_no_doi_is_added_from_its_own_title(bib, monkeypatch):
         "https://datacolada.org/74", "A New Nudge Supported by Implausible Data", "Data Colada", bib
     )
     assert key == "datacolada74"
-    assert "author = {{Data Colada}}" in bib.read_text() and "year = {2018}" in bib.read_text()
+    assert "author = {Data Colada}" in bib.read_text() and "year = {2018}" in bib.read_text()
     assert sources.add_url("https://datacolada.org/74", "anything", "x", bib) == "datacolada74"
 
 
@@ -59,3 +59,22 @@ def test_a_page_whose_title_differs_is_refused(bib, monkeypatch):
     monkeypatch.setattr(sources, "page_record", lambda url: PAGE)
     with pytest.raises(ValueError, match="not 'Small Telescopes'"):
         sources.add_url("https://datacolada.org/74", "Small Telescopes", "Data Colada", bib)
+
+
+def test_page_fields_cannot_close_the_entry_or_start_another(bib, monkeypatch):
+    hostile = dict(PAGE, title=PAGE["title"] + "},\n}\n@misc{evil, note = {pwned", site="Data}@Colada\\x")
+    monkeypatch.setattr(sources, "page_record", lambda url: hostile)
+    sources.add_url(
+        "https://datacolada.org/74", "A New Nudge Supported by Implausible Data", "Data Colada", bib
+    )
+    text = bib.read_text()
+    assert "@misc{evil" not in text and text.count("@") == 2
+    assert "howpublished = {DataColadax}" in text
+
+
+def test_crossref_fields_are_cleaned_too(bib, monkeypatch):
+    monkeypatch.setattr(
+        sources, "crossref", lambda doi: dict(RECORD, title=["Regression Analysis With Linked Data}@x"])
+    )
+    sources.add("10.1198/016214504000001277", "Regression analysis with linked data", bib)
+    assert bib.read_text().count("@") == 2
