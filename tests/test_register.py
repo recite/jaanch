@@ -72,7 +72,7 @@ def test_page_embeds_every_check(tmp_path):
     assert {m["title"] for m in data["modules"]} >= {"Randomized experiments", "Universal checks"}
 
 
-def test_sources_bib_has_unique_keys_and_a_doi_or_note():
+def test_sources_bib_has_unique_keys_and_a_doi_url_or_note():
     import re
     from importlib.resources import files
 
@@ -80,7 +80,8 @@ def test_sources_bib_has_unique_keys_and_a_doi_or_note():
     entries = re.findall(r"@\w+\{([^,]+),(.*?)\n\}", text, re.S)
     keys = [key for key, _ in entries]
     assert len(entries) >= 40 and len(keys) == len(set(keys))
-    assert all("doi = {10." in body or "note = {" in body for _, body in entries)
+    locators = ("doi = {10.", "url = {https://", "note = {")
+    assert all(any(locator in body for locator in locators) for _, body in entries)
 
 
 def test_bib_citations_and_unknown_keys_are_caught():
